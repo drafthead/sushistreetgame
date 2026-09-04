@@ -1,0 +1,9 @@
+{
+  "name": "Sushi Street",
+  "short_name": "Sushi Street",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f6efe2",
+  "theme_color": "#f6efe2",
+  "orientation": "portrait"
+}
