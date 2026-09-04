@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="theme-color" content="#f6efe2" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>Sushi Street</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="app" aria-label="Sushi Street game">
+    <section id="shell">
+      <div id="game" role="application" aria-label="Sushi Street"></div>
+      <div id="hud" aria-live="polite">
+        <div class="hud-topline">
+          <div><span class="eyebrow">LEVEL</span><strong id="hud-level">1</strong></div>
+          <div><span class="eyebrow">JUMPS</span><strong id="hud-jumps">0</strong></div>
+          <div><span class="eyebrow">SCORE</span><strong id="hud-score">0</strong></div>
+          <div><span class="eyebrow">ACTIVE</span><strong id="hud-time">0:00</strong></div>
+          <button id="pause-button" type="button" aria-label="Pause game">Ⅱ</button>
+        </div>
+        <div class="menu-card">
+          <div class="menu-title"><span>TODAY'S MENU</span><b id="hud-progress">0%</b></div>
+          <div id="menu-items"></div>
+        </div>
+      </div>
+
+      <div id="modal" class="show" role="dialog" aria-modal="true">
+        <div class="modal-card">
+          <div class="brand-mark">鮨</div>
+          <p class="kicker">SUSHI STREET</p>
+          <h1 id="modal-title">Today's Run</h1>
+          <p id="modal-body">Collect the ingredients, dodge traffic, and get the restaurant open.</p>
+          <div id="level-grid" class="level-grid"></div>
+          <div id="modal-stats" class="modal-stats" hidden></div>
+          <button id="primary-action" class="primary" type="button">START LEVEL 1</button>
+          <button id="secondary-action" class="secondary" type="button" hidden>LEVEL SELECT</button>
+          <small id="modal-hint">Tap to hop forward. Swipe left/right to cross the block. Swipe down to step back.</small>
+        </div>
+      </div>
+
+      <div id="warmup" aria-live="polite" hidden>
+        <div class="warmup-card"><span class="spinner"></span><b>SYNCING THE STREET…</b></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+  <script src="lifecycle.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
