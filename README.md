@@ -1,27 +1,56 @@
 # Sushi Street
 
-Sushi Street is a Phaser web game built around one-hop-per-lane movement, moving traffic, river crossings, and ingredient delivery. The visual direction uses a small, high-contrast voxel-style palette and fake 3D shading made from simple Phaser shapes so the game stays lightweight for web and future iPhone / Android wrapping.
+Sushi Street is a Phaser web game built around one-hop-per-lane movement, moving traffic, river crossings, ingredient delivery, and a camera that keeps pushing the route forward. It uses lightweight 2D Phaser shapes to create a voxel / block-like look suitable for the web now and a future iPhone / Android wrapper later.
 
 ## Start flow
 
-The game now opens directly into a live route. Traffic and floating river platforms are already moving when the loader disappears. There is no level-select screen before play.
+The game opens directly into a live route. There is no level menu before play.
 
-- The **active-time timer** starts on the player's first valid hop.
-- The **giant sushi fish idle countdown** also starts on the first hop and resets whenever the player moves.
-- Finishing or failing shows a result card with **Run Again / Try Again** and **Menu / Levels**.
-- Level selection only appears after choosing Menu / Levels.
+- Traffic and logs are already moving when the loader disappears.
+- The run clock, camera pressure, and sushi-fish pressure begin on the player's first valid hop.
+- Finishing or failing shows **Run Again / Try Again** and **Menu / Levels**.
+- Level selection is only opened deliberately from **Menu / Levels**.
 
 ## Controls
 
 - Tap / Up / W / Space = hop forward one row.
 - Swipe left/right or Left/Right / A/D = move one column sideways.
-- Swipe down or Down / S = step backward, up to the backtracking limit.
+- Swipe down or Down / S = move backward within the backtracking limit.
 
-Every road row is one gameplay lane and one hop. Dashed road markings are drawn **between** adjacent road rows rather than through the center of a row, so the visual lane structure matches the movement grid.
+Every road row is one gameplay lane and one hop. Dashed road markings are drawn between adjacent road rows.
+
+## Full-screen world sizing
+
+Sushi Street now treats the launch viewport as the playable width instead of placing a narrow fixed-width road inside a larger canvas.
+
+At startup:
+
+1. `window.innerWidth` and `window.innerHeight` become the Phaser viewport dimensions.
+2. The playable grid spans the full viewport width.
+3. The number of columns is chosen dynamically from the viewport width so desktop hops do not become enormous.
+4. Extra world-space **overscan** is generated beyond the visible left/right edges.
+5. The camera sees only the real viewport, while the overscan prevents rotated corners from ever exposing a hard world boundary.
+
+This is especially important on wide desktop screens: roads, canals, grass, traffic, and scenery continue across the entire visible screen instead of ending at a centered mobile-width strip.
+
+## Diagonal camera / perspective
+
+The Crossy Road reference is not viewed from a perfectly straight overhead camera. The world is presented at a slight diagonal so the block faces, vehicle depth, shadows, and lane movement all read together.
+
+Sushi Street now applies a small camera rotation of approximately **5.5°**. Because the whole Phaser world is rotated by the camera:
+
+- a forward hop appears slightly diagonal on screen;
+- cars move along slightly diagonal screen-space paths;
+- logs drift along the same angled lane direction;
+- lane separators are angled consistently;
+- cast shadows and block faces remain aligned with the environment;
+- camera scrolling also carries the scene diagonally instead of looking like a flat vertical conveyor belt.
+
+The gameplay grid and collision rules stay discrete and predictable underneath the presentation. The angled camera changes how the world is seen, not which logical lane the player occupies.
 
 ## Visual palette
 
-The palette below was sampled approximately from the supplied reference screenshot. It is intentionally compact: large flat color areas establish terrain, then darker side faces and cast shadows create the 3D block illusion.
+The palette below was sampled approximately from the supplied reference screenshot. Large flat terrain colors establish readability; darker side faces and offset shadows create the block-like 3D illusion.
 
 | Role | Hex | Use |
 | --- | --- | --- |
@@ -32,52 +61,74 @@ The palette below was sampled approximately from the supplied reference screensh
 | Water highlight | `#57BFFD` | Ripples / brighter water variation |
 | Deep water | `#4886C1` | Water edge / depth |
 | Bright grass | `#A7D861` | Main safe terrain |
-| Mid grass | `#94BD50` | Alternating ground tiles / vegetation |
-| Grass shadow | `#566A29` | Extruded grass/tree sides |
-| Log brown | `#8B443B` | Floating log top face |
-| Log dark | `#6A3939` | Log side face |
-| Vehicle orange | `#F06030` | High-energy car / truck accent |
-| Vehicle red-orange | `#E84028` | Secondary warm vehicle accent |
+| Mid grass | `#94BD50` | Alternating terrain / lily-pad family |
+| Grass shadow | `#566A29` | Dark vegetation / extrusion face |
+| Log brown | `#8B433A` | Floating log top face |
+| Log dark | `#663B3C` | Log side face |
+| Vehicle orange | `#F06030` | Warm car / truck accent |
+| Vehicle red-orange | `#E84028` | Secondary warm vehicle accent / missed state |
 | Lime vehicle | `#A1D15A` | Bright green vehicles |
 | Cabin white | `#EFFAE8` | Car roofs and chef whites |
-| Collectible yellow | `#F8F858` | Pickup / UI highlight |
+| Collectible yellow | `#F8F858` | Pickup / progress highlight |
 | Cool mint accent | `#81D4C1` | Supporting cool accent |
 
 ### Shading rule
 
-The game uses one consistent fake-light model instead of true 3D lighting:
+The fake-light model is consistent throughout the game:
 
-1. Light comes from the **upper-left**.
-2. The top face is the brightest face.
-3. Front / lower faces are roughly 15–20% darker.
-4. Right-side faces are roughly 25–30% darker.
-5. A dark, offset silhouette is placed **down and to the right** as the cast shadow.
+1. light is treated as coming from the upper-left;
+2. the top face is brightest;
+3. front/lower faces are roughly 15–20% darker;
+4. right-side faces are roughly 25–30% darker;
+5. an offset dark silhouette is cast down/right as the ground shadow.
 
-This same rule is used on the sushi chef, vehicles, logs, pickups, and restaurant. The chef therefore has a visible ground shadow plus shaded block faces instead of reading as a flat icon.
+The chef, vehicles, logs, pickups, fish, and restaurant all use this rule. The chef also has a separate ground shadow that compresses during a hop.
 
-## Voxel / block philosophy
+## Traffic spacing
 
-Crossy Road's developers have described its art as voxel-based, and interviews about the game's creation note that the angled presentation made the voxel world substantially more appealing while still preserving sharp, readable hitboxes. Sushi Street uses that principle rather than copying Crossy Road models: objects are reduced to simple boxy silhouettes, edges stay crisp, and depth comes from a repeatable top/front/right-face lighting system.
+Vehicles inside one lane now use a fixed circular spacing model:
 
-Implementation-wise, Sushi Street stays in Phaser 2D. The modular runtime (`sushi-scene.js`, `sushi-visuals.js`, and `sushi-gameplay.js`) draws simple cuboid-like forms with Phaser Graphics rather than requiring a 3D engine. This keeps the game fast, deterministic, and compatible with the existing Phaser lifecycle work.
+- every vehicle in the lane has the same lane speed;
+- initial positions are evenly spaced around a wrap cycle;
+- the wrap uses modulo arithmetic rather than teleporting each car independently;
+- spacing is chosen using the maximum vehicle width plus a safety gap.
 
-## Full-screen layout
+As a result, two cars in the same lane cannot slowly catch each other, overlap, or appear fused together.
 
-The Phaser canvas is created at the browser viewport size at launch and fills `100vw × 100dvh`.
+## Rivers
 
-- On phones, the playable street uses the whole useful width.
-- On wide displays, the canvas still fills the screen but the active crossing is capped at a narrower centered width so the route retains a mobile / arcade feel instead of stretching excessively.
-- A run does not change its world geometry mid-hop if the viewport changes; the future native wrapper can own orientation / resize policy.
+Water rows contain two different support behaviors:
 
-## Core loop
+- **logs move** horizontally and carry the chef with them;
+- **green lily pads never move** and act as permanent stepping stones.
 
-- Collect the ingredients listed in Today's Menu.
-- Cross cars and trucks one lane at a time.
-- Cross canals on moving lily pads and logs.
-- Falling into water creates a splash failure.
-- Waiting too long after starting the run summons the giant sushi fish.
-- Reach the restaurant with more than 50% of the required ingredients to open.
-- A full menu earns the best revenue.
+The stationary pads are placed on actual gameplay columns so the player can intentionally ride a moving log and jump onto a fixed pad. Missing every support causes the splash-down failure.
+
+## Ingredient HUD
+
+The HUD is intentionally compact. It no longer lists every requested ingredient across the top of the screen.
+
+The visible HUD contains:
+
+- **Score**
+- one **Ingredients** progress bar
+- **Pause**
+
+The ingredient bar represents the entire menu from zero to all ingredients. A fixed marker at the midpoint reads **MIN 50%**. The live text shows `collected / total` plus the current percentage. Reaching at least half makes the progress state ready; reaching the end means all requested ingredients were collected.
+
+Individual pickup names still appear in the world and in the short `GOT ...` collection effect, so the objective remains readable without permanently cluttering the top of the screen.
+
+## Camera pressure
+
+The camera is not passive. After the first hop it keeps creeping forward. Progress pulls the chef toward the intended lower-middle camera area and reveals more hazards ahead. If the chef falls too close to the bottom edge, the giant sushi fish ends the run. The idle timeout remains as an additional pressure system.
+
+## Ingredient pickup / missed feedback
+
+Ingredient shop rows use wide rectangular pickup areas rather than one exact grid slot. If the chef occupies the shop row and overlaps the marked rectangle, the ingredient is collected.
+
+- Collection triggers a `GOT [ITEM] +POINTS` burst.
+- Passing an uncollected ingredient row turns its area red and shows **MISSED**.
+- Backtracking to that row or earlier clears the missed state so the ingredient can still be recovered.
 
 ## Progression
 
@@ -85,16 +136,16 @@ The Phaser canvas is created at the browser viewport size at launch and fills `1
 - Level 1 = 30 forward rows.
 - Later levels add two rows per level.
 - Level 3 is the first night route.
-- Later levels rotate morning, day, sunset, and night palettes.
-- Completing a level unlocks the next level, accessible from Menu / Levels.
+- Later routes rotate morning, day, sunset, and night palettes.
+- Completing a route unlocks the next route in Menu / Levels.
 
 ## Runtime / lifecycle
 
 Sushi Street keeps the Slip and Jump lifecycle pattern:
 
-- pause Phaser when the page / app is hidden;
+- pause Phaser when the page/app is hidden;
 - do not count background time as gameplay time;
-- clear stale pointer / buffered input state;
+- clear stale pointer and buffered input state;
 - warm-resume behind a short input-blocking overlay;
 - remove old scene timers, tweens, camera effects, and level-owned objects before rebuilding.
 
@@ -102,32 +153,21 @@ See `PHASER_LIFECYCLE.md` for details.
 
 ## Files
 
-- `index.html` — full-screen shell, HUD, loader, result/menu modal.
-- `style.css` — sampled palette, loader, HUD, modal styling.
-- `sushi-config.js` — viewport sizing, palette, themes, item catalog, and constants.
-- `sushi-scene.js` — direct-start scene, input, level setup, and menu flow.
-- `sushi-visuals.js` — voxel-style roads, cars, chef, water, logs, lily pads, shops, and shadows.
-- `sushi-gameplay.js` — movement, camera pressure, pickups, MISSED feedback, scoring, hazards, and progression.
-- `sushi-boot.js` — full-screen Phaser boot.
-- `lifecycle.js` — pause / resume / cleanup behavior.
-- `GAME_DESIGN.md` — game rules and visual design notes.
-- `PHASER_LIFECYCLE.md` — lifecycle practices adapted from Slip and Jump.
-
-## Camera pressure and ingredient feedback
-
-The camera is intentionally **not** a passive follow camera. After the first hop, it keeps creeping forward even while the chef waits. Forward progress pulls the chef back toward a lower-middle screen anchor and exposes more upcoming lanes at the top. If the chef falls to roughly the bottom 9% of the viewport, the giant sushi fish ends the run. This matches the pressure principle described in Crossy Road coverage: the bottom screen edge keeps advancing and waiting too long eventually becomes fatal.
-
-The top HUD includes a **Minimum Ingredients** bar. The minimum is the smallest whole-number count greater than 50% of the menu (`floor(total × 0.5) + 1`). When the bar fills, the route is eligible to open the restaurant at the finish.
-
-Ingredient shops use a wider rectangular pickup zone rather than requiring the chef to land on one exact grid column. Entering any part of that marked zone on the correct shop row collects the ingredient and triggers a pickup burst. If the chef advances past an uncollected ingredient row, that shop turns red and shows **MISSED**. Backtracking to the ingredient row or earlier removes the missed warning, so recovery is still possible.
+- `index.html` — full-screen shell, compact HUD, loader, result/menu modal.
+- `style.css` — palette, compact progress HUD, loader, modal styling.
+- `sushi-config.js` — viewport sizing, full-width world/overscan, diagonal camera constants, palette, themes, item catalog.
+- `sushi-scene.js` — direct-start scene, input, full-width camera/world setup, level setup, menu flow.
+- `sushi-visuals.js` — voxel terrain, separated traffic, stationary lily pads, moving logs, chef, pickups, shadows.
+- `sushi-gameplay.js` — movement, ingredient progress, camera pressure, pickups, MISSED feedback, scoring, hazards.
+- `sushi-boot.js` — Phaser boot at the launch viewport dimensions.
+- `lifecycle.js` — pause/resume/cleanup behavior.
 
 ## Research references
 
 - Crossy Road official site: https://www.crossyroad.com/
 - Crossy Road App Store listing: https://apps.apple.com/us/app/crossy-road/id924373886
 - PocketGamer.biz, *Why did the chicken... the making of Crossy Road*: https://www.pocketgamer.biz/making-of-crossy-road/
-- Apple Games We Love: https://apps.apple.com/us/story/id1392574563
-- Phaser Scale Manager: https://docs.phaser.io/phaser/concepts/scale-manager
+- Phaser Camera: https://docs.phaser.io/phaser/concepts/cameras
 - Phaser Graphics: https://docs.phaser.io/phaser/concepts/gameobjects/graphics
 
 No Crossy Road art assets are included in this repository.
