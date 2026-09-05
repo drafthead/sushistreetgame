@@ -15,6 +15,12 @@
     ['shrimp','SHRIMP','えび','FISH SHOP',14,0xf2aba6], ['uni','UNI','うに','SPECIALTY',18,0xe4aa4d],
   ].map(([key,label,jp,shop,points,color]) => ({ key,label,jp,shop,points,color }));
 
+  const CHEFS = [
+    { id:'chef-1', name:'Slicey McDicey', menuSrc:'images/sushimasters/1/front.png', runSrc:'images/sushimasters/1/back.png' },
+    { id:'chef-2', name:'Kyoto O Sushi', menuSrc:'images/sushimasters/2/front.png', runSrc:'images/sushimasters/2/back.png' },
+    { id:'chef-3', name:'Nigiri McFlurry', menuSrc:'images/sushimasters/3/front.png', runSrc:'images/sushimasters/3/back.png' },
+  ];
+
   const THEMES = {
     morning:{key:'morning',skyTop:0x9be0f7,skyBottom:0xeaf6ef,grass:PALETTE.grass,grassAlt:PALETTE.grassMid,grassDark:PALETTE.grassDark,road:PALETTE.road,roadShadow:PALETTE.roadShadow,water:PALETTE.water,waterDeep:PALETTE.waterDeep,laneStripe:0x9aa5b9,shop:0xe6c99d,shopDark:0xb9835d,lantern:0xffc66d,stars:false},
     day:{key:'day',skyTop:0x72d8ff,skyBottom:0xf2fbf3,grass:0xa7d861,grassAlt:0x94bd50,grassDark:0x566a29,road:0x484e5d,roadShadow:0x272b37,water:0x72d8ff,waterDeep:0x4886c1,laneStripe:0x9aa5b9,shop:0xedc98f,shopDark:0xb97d50,lantern:0xffbf68,stars:false},
@@ -40,7 +46,7 @@
   const formatTime = ms => { const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
 
   const S = {
-    PALETTE, ITEMS, THEMES, ui, clamp, lighten, darken, rngFor, formatTime,
+    PALETTE, ITEMS, CHEFS, THEMES, ui, clamp, lighten, darken, rngFor, formatTime,
     MAX_LEVEL:20, MAX_BACKTRACK:4, SAVE_KEY:'sushi-street-save-v1', IDLE_FISH_MS:6200,
     CAMERA_DEG:5.5, CAMERA_FOLLOW_Y:0.68, CAMERA_DANGER_Y:0.91, PICKUP_ROW_GAP:4,
   };
