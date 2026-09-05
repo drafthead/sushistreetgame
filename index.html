@@ -19,9 +19,9 @@
       <div class="boot-loader-demo" aria-hidden="true">
         <div class="maki maki-a"></div><div class="maki maki-b"></div><div class="maki maki-c"></div><div class="plate"></div><div class="loader-shadow"></div>
       </div>
-      <div class="boot-kicker">MARKET RUN • RIVER HOP • DINNER READY</div>
+      <div class="boot-kicker">SUSHI PREP • KITCHEN RUN • BONUS STREET</div>
       <h1>SUSHI STREET</h1>
-      <p>Grab today's ingredients. Cross every lane. Get the restaurant open.</p>
+      <p>Collect enough ingredients and plates, get sushi prep ready, and clear bonus street crossings.</p>
       <div class="boot-loader-spinner" aria-hidden="true"></div>
     </div>
   </div>
@@ -36,8 +36,8 @@
       <div class="hud-row hud-compact">
         <div class="hud-chip score-chip"><span>SCORE</span><b id="hud-score">0</b></div>
         <div id="ingredient-bag" class="ingredient-bag" aria-label="Ingredient bag"><span class="bag-handle"></span><b>袋</b></div>
-        <div class="minimum-panel" aria-label="Ingredient delivery progress">
-          <div class="minimum-copy"><span>INGREDIENTS</span><b id="minimum-text">0/0 · 0%</b></div>
+        <div class="minimum-panel" aria-label="Sushi prep progress">
+          <div class="minimum-copy"><span>SUSHI PREP</span><b id="minimum-text">ING 0/3 · PLATES 0/3</b></div>
           <div class="minimum-track" aria-hidden="true">
             <i id="minimum-fill"></i><em class="minimum-marker"></em>
           </div>
@@ -55,17 +55,17 @@
 
     <section id="modal" aria-modal="true" role="dialog" aria-labelledby="modal-title">
       <div class="modal-card">
-        <div class="modal-kicker">SUSHI STREET</div><h2 id="modal-title">DELIVERY COMPLETE</h2><p id="modal-body">Run it again or open the menu to choose a level.</p>
+        <div class="modal-kicker">SUSHI STREET</div><h2 id="modal-title">SUSHI PREP</h2><p id="modal-body">Collect the prep quota and reach the end.</p>
         <div id="modal-stats" hidden></div><div id="level-grid" class="level-grid" hidden></div>
         <div class="modal-actions"><button id="primary-action" class="primary" data-action="retry">RUN AGAIN</button><button id="secondary-action" class="secondary" data-action="level-select">MENU / LEVELS</button></div>
         <small id="modal-hint">The next run starts immediately.</small>
       </div>
     </section>
 
-    <div id="warmup" hidden><div class="warmup-card"><div class="warmup-spinner" aria-hidden="true"></div><b>MARKET SYNC</b><span>RESETTING THE STREET…</span></div></div>
+    <div id="warmup" hidden><div class="warmup-card"><div class="warmup-spinner" aria-hidden="true"></div><b>KITCHEN SYNC</b><span>RESETTING THE PREP LINE…</span></div></div>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
-  <script src="sushi-config.js"></script><script src="lifecycle.js"></script><script src="sushi-scene.js"></script><script src="sushi-visuals.js"></script><script src="sushi-gameplay.js"></script><script src="sushi-environment.js"></script><script src="sushi-river-ui.js"></script><script src="sushi-layering.js"></script><script src="sushi-flow.js"></script><script src="sushi-fish.js"></script><script src="sushi-restaurant-status.js"></script><script src="sushi-hit-feedback.js"></script><script src="sushi-tuning.js"></script><script src="sushi-kitchen-level1.js"></script><script src="sushi-kitchen-level1-v2.js"></script><script src="sushi-kitchen-level1-v3.js"></script><script src="sushi-kitchen-level1-v4.js"></script><script src="sushi-kitchen-level1-v5.js"></script><script src="sushi-kitchen-level1-v6.js"></script><script src="sushi-kitchen-level1-v7.js"></script><script src="sushi-kitchen-level1-v8.js"></script><script src="sushi-kitchen-level1-v9.js"></script><script src="sushi-boot.js"></script>
+  <script src="sushi-config.js"></script><script src="lifecycle.js"></script><script src="sushi-scene.js"></script><script src="sushi-visuals.js"></script><script src="sushi-gameplay.js"></script><script src="sushi-environment.js"></script><script src="sushi-river-ui.js"></script><script src="sushi-layering.js"></script><script src="sushi-flow.js"></script><script src="sushi-fish.js"></script><script src="sushi-restaurant-status.js"></script><script src="sushi-hit-feedback.js"></script><script src="sushi-tuning.js"></script><script src="sushi-kitchen-mode.js"></script><script src="sushi-kitchen-level1.js"></script><script src="sushi-kitchen-level1-v2.js"></script><script src="sushi-kitchen-level1-v3.js"></script><script src="sushi-kitchen-level1-v4.js"></script><script src="sushi-kitchen-level1-v5.js"></script><script src="sushi-kitchen-level1-v6.js"></script><script src="sushi-kitchen-level1-v7.js"></script><script src="sushi-kitchen-level1-v8.js"></script><script src="sushi-kitchen-level1-v9.js"></script><script src="sushi-kitchen-levels-v10.js"></script><script src="sushi-boot.js"></script>
 </body>
 </html>
