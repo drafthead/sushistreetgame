@@ -1,9 +1,12 @@
 /* Level 1 kitchen prototype. Side art is a fixed viewport frame; gameplay remains responsive beneath it. */
 #kitchen-side-frame{
-  --kitchen-side-visible:clamp(52px,4.8vw,72px);
+  /* The previous 52–72 px rails were technically visible, but most of the
+     useful artwork was still outside the viewport. Bring another ~40 px of
+     each illustration into the screen while keeping the outside edge flush. */
+  --kitchen-side-visible:clamp(92px,7.4vw,112px);
   position:fixed;
   inset:0;
-  z-index:180;
+  z-index:260;
   pointer-events:none;
   display:none;
   overflow:hidden;
@@ -17,11 +20,10 @@ body.kitchen-level-one #kitchen-side-frame,
   opacity:1!important;
 }
 
-/* Use the actual side <img> elements instead of pseudo-element background
-   slices. object-fit:cover preserves aspect ratio while the narrow viewport
-   rail crops into the interior of each illustration, avoiding transparent or
-   empty outer margins. Both rails are bottom-anchored and stay above the game
-   canvas. */
+/* Use the real side PNGs. The elements remain pinned to the physical screen
+   edges, but are now about 40 px wider toward the center of the game. This is
+   equivalent to pulling the right illustration left and the left illustration
+   right without creating an empty gap at the outside edge. */
 #kitchen-side-frame .kitchen-side{
   display:block!important;
   position:absolute;
@@ -36,15 +38,16 @@ body.kitchen-level-one #kitchen-side-frame,
 }
 #kitchen-side-frame .kitchen-side-left{
   left:0;
-  object-position:72% 100%;
+  object-position:82% 100%;
 }
 #kitchen-side-frame .kitchen-side-right{
   right:0;
-  object-position:28% 100%;
+  object-position:18% 100%;
 }
-/* Keep controls above the decorative rails even though the rails themselves
-   are now explicitly above the Phaser canvas. */
-body.kitchen-level-one #hud{z-index:200}
+
+/* Keep controls above the decorative rails; rails stay well above the Phaser
+   canvas so they cannot disappear behind gameplay. */
+body.kitchen-level-one #hud{z-index:320}
 
 body.kitchen-level-one .minimum-marker,
 body.kitchen-level-one .minimum-labels{display:none}
@@ -52,7 +55,7 @@ body.kitchen-level-one .minimum-panel{padding-bottom:9px}
 body.kitchen-level-one .minimum-copy span{color:#f4d28e}
 body.kitchen-level-one .minimum-track{margin-top:7px}
 @media(max-width:520px){
-  #kitchen-side-frame{--kitchen-side-visible:52px}
+  #kitchen-side-frame{--kitchen-side-visible:92px}
   body.kitchen-level-one .minimum-copy{gap:5px}
   body.kitchen-level-one #minimum-text{font-size:10px}
 }
