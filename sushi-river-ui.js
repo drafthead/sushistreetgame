@@ -1,8 +1,6 @@
 (() => {
   const S=window.SS, P=S.PALETTE, U=S.ui, proto=window.SushiScene.prototype;
 
-  // Keep HUD icons local/offline. River boats are generated in Phaser now;
-  // we intentionally do not depend on images/boats for playability.
   proto.syncSoundButton=function(){
     if(!U.sound)return;
     const on=this.save?.soundEnabled!==false;
@@ -10,153 +8,128 @@
     U.sound.setAttribute('aria-pressed',String(on));
     U.sound.setAttribute('aria-label',on?'Turn sound off':'Turn sound on');
     const img=U.sound.querySelector('img');
-    if(img){
-      img.src=on?'images/icons/volume-on.svg':'images/icons/volume-off.svg';
-      img.alt='';
-    }
+    if(img){img.src=on?'images/icons/volume-on.svg':'images/icons/volume-off.svg';img.alt='';}
   };
 
-  // River invariant:
-  // 1) every water row always has usable supports;
-  // 2) moving supports are evenly spaced with a real gap between them;
-  // 3) second water rows use stationary pads;
-  // 4) raw water is never a valid landing surface.
-  proto.buildFloaters=function(r){
+  const addSupport=(scene,row,obj,meta)=>{
+    obj.__float=meta;
+    row.floaters.push(obj);
+    scene.floaters.push(obj);
+    scene.track(obj);
+    return obj;
+  };
+
+  const buildPads=(scene,row)=>{
     const wide=S.W>=900;
-    const previousWater=this.rows[r.index-1]?.type==='water';
+    const padCount=wide?5:4;
+    const minCol=1,maxCol=Math.max(1,S.COLS-2);
+    const fractions=wide?[.12,.31,.5,.69,.88]:[.15,.38,.62,.85];
+    const cols=[];
 
-    // Second row of a river: stationary pads, deliberately spread apart.
-    if(previousWater){
-      const padCount=wide?4:3;
-      const cols=[];
-      const minCol=1, maxCol=Math.max(minCol,S.COLS-2);
-      const span=Math.max(1,maxCol-minCol);
-
-      for(let i=0;i<padCount;i++){
-        const target=minCol+Math.round(((i+1)/(padCount+1))*span);
-        const jitter=Math.floor(this.rng()*3)-1;
-        let col=S.clamp(target+jitter,minCol,maxCol);
-        let guard=0;
-        while(cols.some(c=>Math.abs(c-col)<2)&&guard++<40){
-          const step=(guard%2?1:-1)*Math.ceil(guard/2);
-          col=S.clamp(target+step,minCol,maxCol);
-        }
-        if(cols.some(c=>Math.abs(c-col)<2)){
-          for(let candidate=minCol;candidate<=maxCol;candidate++){
-            if(!cols.some(c=>Math.abs(c-candidate)<2)){col=candidate;break;}
-          }
-        }
-        cols.push(col);
-
-        const w=S.clamp(S.CELL_W*1.12,46,88);
-        const f=this.createFloater(this.colX(col),r.y-2,w,'lily',1);
-        f.__float={
-          vx:0,pad:0,width:w,hitWidth:w*.84,kind:'lily',
-          left:S.PLAY_X,right:S.PLAY_X+S.PLAY_W,stationary:true
-        };
-        r.floaters.push(f);this.floaters.push(f);this.track(f);
+    fractions.forEach((fraction,i)=>{
+      let col=Math.round(minCol+fraction*(maxCol-minCol));
+      if(i%2===1)col+=row.index%2===0?1:-1;
+      col=S.clamp(col,minCol,maxCol);
+      let guard=0;
+      while(cols.some(c=>Math.abs(c-col)<2)&&guard++<24){
+        const delta=guard%2?1:-1;
+        col=S.clamp(col+delta,minCol,maxCol);
       }
-      r.stationaryPadCols=cols;
-      return;
-    }
-
-    // First/single water row: independent moving logs with occasional generated boats.
-    const dir=this.rng()>.5?1:-1;
-    const speed=(27+this.selectedLevel*1.15+Math.floor(this.rng()*10))*dir;
-    const logW=S.clamp(S.CELL_W*1.72,68,118);
-    const minGap=S.clamp(S.CELL_W*.58,24,44);
-    const sidePad=logW*.62+minGap;
-    const cycleStart=S.PLAY_X-sidePad;
-    const cycleLength=S.PLAY_W+sidePad*2;
-
-    // floor() is intentional: spacing can only get larger than logW + minGap,
-    // never smaller, so supports cannot visually fuse into one long platform.
-    const maxBySpacing=Math.max(3,Math.floor(cycleLength/(logW+minGap)));
-    const count=Math.max(wide?5:4,maxBySpacing);
-    const spacing=cycleLength/count;
-
-    // Safety: if the viewport is unusually narrow, shrink the support rather than overlap it.
-    const actualW=Math.min(logW,Math.max(50,spacing-minGap));
-    const phase=this.rng()*Math.min(minGap*.6,18);
-
-    for(let i=0;i<count;i++){
-      const useBoat=(i%4===2); // generated boat, no external boat image required
-      const kind=useBoat?'boat':'log';
-      const w=useBoat?Math.min(actualW*1.16,spacing-minGap):actualW;
-      const x=cycleStart+phase+i*spacing;
-      const f=this.createFloater(x,r.y-2,w,kind,dir);
-      f.__float={
-        vx:speed,pad:w*.5,width:w,hitWidth:w*(useBoat?.78:.86),kind,
-        left:S.PLAY_X,right:S.PLAY_X+S.PLAY_W,
-        cycleStart,cycleLength,stationary:false
-      };
-      r.floaters.push(f);this.floaters.push(f);this.track(f);
-    }
-
-    // Absolute fallback. A water row is never allowed to exist with no supports.
-    if(!r.floaters.length){
-      const fallbackCount=wide?4:3;
-      for(let i=0;i<fallbackCount;i++){
-        const w=S.clamp(S.CELL_W*1.6,64,104);
-        const x=S.PLAY_X+S.PLAY_W*(i+1)/(fallbackCount+1);
-        const f=this.createFloater(x,r.y-2,w,'log',dir);
-        f.__float={
-          vx:speed,pad:w*.5,width:w,hitWidth:w*.86,kind:'log',
-          left:S.PLAY_X,right:S.PLAY_X+S.PLAY_W,
-          cycleStart,cycleLength,stationary:false
-        };
-        r.floaters.push(f);this.floaters.push(f);this.track(f);
+      if(cols.some(c=>Math.abs(c-col)<2)){
+        for(let candidate=minCol;candidate<=maxCol;candidate++){
+          if(!cols.some(c=>Math.abs(c-candidate)<2)){col=candidate;break;}
+        }
       }
-    }
+      cols.push(col);
+
+      const w=S.clamp(S.CELL_W*1.18,50,94);
+      const pad=scene.createFloater(scene.colX(col),row.y-2,w,'lily',1);
+      addSupport(scene,row,pad,{vx:0,width:w,hitWidth:w*.86,kind:'lily',stationary:true,left:S.PLAY_X,right:S.PLAY_X+S.PLAY_W});
+    });
+    row.stationaryPadCols=cols;
   };
 
-  const baseCreateFloater=proto.createFloater;
-  proto.createFloater=function(x,y,w,kind,dir=1){
-    if(kind!=='boat')return baseCreateFloater.call(this,x,y,w,kind);
-
-    // Simple generated fishing boat: low hull + raised box at the rear.
-    const c=this.add.container(x,y).setDepth(39);
-    const g=this.add.graphics();
-    const rear=-Math.sign(dir||1);
+  const createSimpleBoat=(scene,x,y,w,dir)=>{
+    const c=scene.add.container(x,y).setDepth(39),g=scene.add.graphics();
     c.add(g);
-
-    g.fillStyle(P.shadow,.2);
-    g.fillEllipse(8,13,w*.76,S.clamp(S.ROW_H*.2,11,16));
-
-    const hull=0x4b8eaa;
-    this.drawBox(g,0,5,w*.9,S.ROW_H*.27,Math.max(4,S.VOXEL_DEPTH-1),hull,{
-      shadow:false,
-      top:S.lighten(hull,9),
-      front:S.darken(hull,16),
-      right:S.darken(hull,28)
-    });
-
-    const rearBoxX=rear*w*.22;
-    this.drawBox(g,rearBoxX,-7,w*.32,S.ROW_H*.28,4,P.cabin,{
-      shadow:false,
-      top:P.cabin,
-      front:0xd4e4e7,
-      right:0xa4b5bd
-    });
-
-    g.fillStyle(P.black,1);
-    g.fillRect(rearBoxX-w*.1,-12,w*.08,7);
-    g.fillRect(rearBoxX+w*.02,-12,w*.08,7);
-    g.fillStyle(0xe7654f,1);
-    g.fillRect(-rear*w*.22,-1,w*.13,5);
-
+    g.fillStyle(P.shadow,.2);g.fillEllipse(8,13,w*.78,S.clamp(S.ROW_H*.18,10,15));
+    const hull=0x4b86a8;
+    scene.drawBox(g,0,5,w*.9,S.ROW_H*.25,Math.max(4,S.VOXEL_DEPTH-1),hull,{shadow:false,top:S.lighten(hull,10),front:S.darken(hull,16),right:S.darken(hull,28)});
+    const rear=dir>0?-1:1,cabinX=rear*w*.2;
+    scene.drawBox(g,cabinX,-8,w*.3,S.ROW_H*.27,4,P.cabin,{shadow:false,front:0xd7e5e7,right:0xa0b2bc});
+    g.fillStyle(P.black,.95);g.fillRect(cabinX-w*.09,-13,w*.07,7);g.fillRect(cabinX+w*.01,-13,w*.07,7);
     return c;
   };
 
-  proto.findSupportAt=function(row,x){
-    const lane=this.rows[row];
-    if(!lane||lane.type!=='water')return null;
-    return lane.floaters.find(f=>{
-      if(!f?.active||f.visible===false)return false;
-      const meta=f.__float;
-      if(!meta)return false;
-      const hitWidth=meta.hitWidth||meta.width*.82;
-      return Math.abs(x-f.x)<=hitWidth*.5;
+  const buildMovingSupports=(scene,row)=>{
+    const wide=S.W>=900;
+    const dir=scene.rng()>.5?1:-1;
+    const speed=(30+scene.selectedLevel*1.1+Math.floor(scene.rng()*9))*dir;
+    const supportW=S.clamp(S.CELL_W*1.9,84,136);
+    const gap=S.clamp(S.CELL_W*.72,34,58);
+    const offscreen=supportW+gap;
+    const cycleStart=S.PLAY_X-offscreen;
+    const cycleLength=S.PLAY_W+offscreen*2;
+
+    let count=Math.max(wide?6:4,Math.floor(cycleLength/(supportW+gap)));
+    while(count>3&&cycleLength/count<supportW+gap*.6)count--;
+    const spacing=cycleLength/count;
+    const actualW=Math.min(supportW,Math.max(62,spacing-gap));
+    const phase=scene.rng()*Math.min(gap*.4,16);
+
+    for(let i=0;i<count;i++){
+      const boat=(i+row.index+scene.selectedLevel)%5===2;
+      const w=boat?Math.min(actualW*1.04,spacing-gap):actualW;
+      const x=cycleStart+phase+i*spacing;
+      const obj=boat?createSimpleBoat(scene,x,row.y-2,w,dir):scene.createFloater(x,row.y-2,w,'log',dir);
+      addSupport(scene,row,obj,{vx:speed,width:w,hitWidth:w*(boat?.78:.84),kind:boat?'generatedBoat':'log',stationary:false,left:S.PLAY_X,right:S.PLAY_X+S.PLAY_W,cycleStart,cycleLength});
+    }
+
+    if(!row.floaters.length){
+      const fallback=wide?5:3;
+      for(let i=0;i<fallback;i++){
+        const w=S.clamp(S.CELL_W*1.75,78,126),x=S.PLAY_X+S.PLAY_W*(i+.5)/fallback;
+        const log=scene.createFloater(x,row.y-2,w,'log',dir);
+        addSupport(scene,row,log,{vx:speed,width:w,hitWidth:w*.84,kind:'log',stationary:false,left:S.PLAY_X,right:S.PLAY_X+S.PLAY_W,cycleStart,cycleLength});
+      }
+    }
+  };
+
+  // The final row of every river section is always a stationary-pad lane.
+  // A one-row stream is therefore also pads-only and can never be empty.
+  proto.buildFloaters=function(row){
+    const nextIsWater=this.rows[row.index+1]?.type==='water';
+    if(!nextIsWater)buildPads(this,row);
+    else buildMovingSupports(this,row);
+  };
+
+  proto.findSupportAt=function(rowIndex,x){
+    const row=this.rows[rowIndex];
+    if(!row||row.type!=='water')return null;
+    return row.floaters.find(obj=>{
+      if(!obj?.active||obj.visible===false||!obj.__float)return false;
+      const hitWidth=obj.__float.hitWidth||obj.__float.width*.82;
+      return Math.abs(x-obj.x)<=hitWidth*.5;
     })||null;
+  };
+
+  // Normalize every Sushi Master by height rather than width.
+  proto.spawnPlayer=function(){
+    this.playerRow=0;this.playerCol=S.START_COL;
+    const c=this.add.container(this.colX(S.START_COL),this.rowY(0)).setDepth(82),shadow=this.add.graphics();
+    shadow.fillStyle(P.shadow,.3);shadow.fillEllipse(12,22,S.clamp(S.CELL_W*.92,40,62),S.clamp(S.ROW_H*.18,11,16));c.add(shadow);
+    const art=this.add.container(0,-7),chef=S.CHEFS.find(ch=>ch.id===(this.save?.selectedChef||S.CHEFS[0].id)),runKey=`chef-run-${chef?.id||S.CHEFS[0].id}`;
+
+    if(chef&&this.textures.exists(runKey)){
+      const img=this.add.image(0,20,runKey);
+      const targetHeight=S.clamp(S.ROW_H*1.48,82,98);
+      img.setOrigin(.5,1).setScale(targetHeight/Math.max(1,img.height));
+      art.add(img);
+    }else{
+      const g=this.add.graphics(),s=S.clamp(S.CELL_W*.64,28,40);art.add(g);
+      this.drawBox(g,-s*.18,14,s*.28,s*.24,3,0x5e4238,{shadow:false});this.drawBox(g,s*.18,14,s*.28,s*.24,3,0x5e4238,{shadow:false});
+      this.drawBox(g,0,2,s*.62,s*.65,5,P.cabin,{shadow:false,front:0xe1e5ee,right:0xb8b7ce});this.drawBox(g,0,-13,s*.52,s*.42,4,0xffd8b0,{shadow:false,front:0xe3ac89,right:0xc88d72});this.drawBox(g,0,-34,s*.72,s*.3,5,P.cabin,{shadow:false,front:0xdedfed,right:0xaaa8c2});
+    }
+    c.add(art);this.player=this.track(c);this.playerArt=art;this.playerShadow=shadow;this.playerSupport=null;this.playerSupportOffsetX=0;
   };
 })();
