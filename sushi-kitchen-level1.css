@@ -1,35 +1,57 @@
 /* Level 1 kitchen prototype. Side art is a fixed viewport frame; gameplay remains responsive beneath it. */
 #kitchen-side-frame{
-  --kitchen-side-visible:clamp(20px,2.5vw,40px);
+  --kitchen-side-visible:clamp(28px,3vw,40px);
+  --kitchen-side-art-width:clamp(260px,32vw,440px);
   position:fixed;
   inset:0;
-  z-index:120;
+  z-index:149;
   pointer-events:none;
   display:none;
   overflow:hidden;
 }
-body.kitchen-level-one #kitchen-side-frame{display:block}
-#kitchen-side-frame .kitchen-side{
+body.kitchen-level-one #kitchen-side-frame,
+#kitchen-side-frame.force-show{display:block!important}
+
+/* The original <img> elements remain as semantic/fallback assets, but the
+   visible rails use background crops. This guarantees a real slice of each
+   high-resolution side illustration is on-screen instead of letting the whole
+   image be positioned just outside the viewport. */
+#kitchen-side-frame .kitchen-side{display:none!important}
+#kitchen-side-frame::before,
+#kitchen-side-frame::after{
+  content:"";
   position:absolute;
-  top:0;
+  bottom:0;
+  width:var(--kitchen-side-visible);
   height:100dvh;
-  width:auto;
-  max-width:none;
-  object-fit:contain;
-  object-position:center center;
+  background-repeat:no-repeat;
+  background-size:var(--kitchen-side-art-width) auto;
   filter:saturate(1.03) contrast(1.02);
 }
-/* Preserve the source aspect ratio and park most of each tall strip offscreen.
-   Only 20–40 px of the inside edge remains visible on each side. */
-#kitchen-side-frame .kitchen-side-left{right:calc(100% - var(--kitchen-side-visible))}
-#kitchen-side-frame .kitchen-side-right{left:calc(100% - var(--kitchen-side-visible))}
+#kitchen-side-frame::before{
+  left:0;
+  background-image:url('images/kitchen/backgrounds/leftside.png');
+  /* Crop slightly inside the image instead of showing a potentially empty
+     transparent outermost edge. The art is anchored at the bottom and may end
+     naturally before the very top on unusually tall screens. */
+  background-position:right -24px bottom 0;
+}
+#kitchen-side-frame::after{
+  right:0;
+  background-image:url('images/kitchen/backgrounds/rightside.png');
+  background-position:left -24px bottom 0;
+}
+
 body.kitchen-level-one .minimum-marker,
 body.kitchen-level-one .minimum-labels{display:none}
 body.kitchen-level-one .minimum-panel{padding-bottom:9px}
 body.kitchen-level-one .minimum-copy span{color:#f4d28e}
 body.kitchen-level-one .minimum-track{margin-top:7px}
 @media(max-width:520px){
-  #kitchen-side-frame{--kitchen-side-visible:24px}
+  #kitchen-side-frame{
+    --kitchen-side-visible:30px;
+    --kitchen-side-art-width:280px;
+  }
   body.kitchen-level-one .minimum-copy{gap:5px}
   body.kitchen-level-one #minimum-text{font-size:10px}
 }
