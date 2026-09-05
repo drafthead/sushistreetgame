@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Tap gesture">
+  <g fill="none" stroke="#fff7df" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M31 28V13c0-4 6-4 6 0v17" stroke-width="5"/>
+    <path d="M37 28v-8c0-4 6-4 6 0v10" stroke-width="5"/>
+    <path d="M43 29v-6c0-4 6-4 6 0v12" stroke-width="5"/>
+    <path d="M49 31c4-2 7 1 5 5l-6 13c-2 4-6 7-11 7H27c-5 0-9-2-12-6L8 40c-2-3 2-7 5-4l9 7V27c0-4 6-4 6 0v10" stroke-width="5"/>
+    <path d="M21 12c-4 2-7 6-7 11" stroke-width="3" opacity=".9"/>
+    <path d="M17 7c-7 4-11 10-11 18" stroke-width="3" opacity=".65"/>
+  </g>
+</svg>
