@@ -1,333 +1,622 @@
 (() => {
-  const S=window.SS, P=S.PALETTE, U=S.ui, proto=window.SushiScene.prototype;
+  const S = window.SS;
+  const U = S.ui;
+  const proto = window.SushiScene.prototype;
 
-  const BOARD_FILES=[1];
-  const INGREDIENT_FILES=[1,2,3,4,5,6];
-  const POT_FILES=[1,2,3];
-  const PLATE_FILES=[1,2,3,4];
-  const KNIFE_FILES=[1,2,6];
-
-  const KITCHEN_GOAL_ROW=30;
-  const KITCHEN_INGREDIENT_SLOTS=4;
-  const KITCHEN_INGREDIENT_MIN=2;
-  const KITCHEN_PLATE_MIN=3;
-  const PLATE_POINTS={1:10,2:20,3:30,4:40};
-
-  const KITCHEN_ROWS={
-    1:'entry',2:'roll',3:'plate',4:'ingredient',5:'water',6:'water',7:'pot',8:'knife',9:'plate',10:'roll',
-    11:'ingredient',12:'pot',13:'water',14:'water',15:'plate',16:'roll',17:'pot',18:'ingredient',19:'knife',20:'plate',
-    21:'water',22:'water',23:'roll',24:'pot',25:'ingredient',26:'plate',27:'roll',28:'pot',29:'finish'
+  const BOARD_FILES = [1];
+  const INGREDIENT_FILES = [1, 2, 3, 4, 5, 6];
+  const POT_FILES = [1, 2, 3];
+  const PLATE_FILES = [1, 2, 3, 4];
+  const KNIFE_FILES = [1, 2, 6];
+  const PLATE_POINTS = {1: 5, 2: 10, 3: 20, 4: 35};
+  const PLATES_NEEDED = 3;
+  const KITCHEN_MENU_ITEM = {
+    key: 'kitchenChoice',
+    label: 'KITCHEN INGREDIENT',
+    jp: '食材',
+    shop: 'KITCHEN',
+    points: 12,
+    color: 0xf8f858
   };
 
-  const key=(kind,n)=>`kitchen-${kind}-${n}`;
-  const depth=(scene,y,offset=0)=>scene.depthForY?scene.depthForY(y,offset):10000+Math.round(y*10)+offset;
-  const shuffled=(scene,arr)=>arr.slice().sort(()=>((scene.rng?.()??Math.random())-.5));
-  const nearestCols=(count)=>{
-    const min=1,max=Math.max(1,S.COLS-2);
-    if(count<=1)return [Math.round((min+max)/2)];
-    const out=[];
-    for(let i=0;i<count;i++){
-      let col=Math.round(min+(max-min)*(i/(count-1)));
-      let guard=0;
-      while(out.includes(col)&&guard++<20)col=S.clamp(col+(guard%2?1:-1),min,max);
-      out.push(col);
-    }
-    return out;
-  };
-
-  const ensureFrame=()=>{
-    let frame=document.getElementById('kitchen-side-frame');
-    if(frame)return frame;
-    frame=document.createElement('div');
-    frame.id='kitchen-side-frame';
-    frame.setAttribute('aria-hidden','true');
-    frame.innerHTML='<img class="kitchen-side kitchen-side-left" src="images/kitchen/backgrounds/leftside.png" alt=""><img class="kitchen-side kitchen-side-right" src="images/kitchen/backgrounds/rightside.png" alt="">';
-    document.body.appendChild(frame);
-    return frame;
-  };
-
-  const setKitchenFrameVisible=visible=>{
-    const frame=ensureFrame();
-    frame.classList.toggle('show',Boolean(visible));
-    document.body.classList.toggle('kitchen-level-one',Boolean(visible));
-  };
-
-  const basePreload=proto.preload;
-  proto.preload=function(){
+  const basePreload = proto.preload;
+  proto.preload = function() {
     basePreload.call(this);
-    BOARD_FILES.forEach(n=>this.load.image(key('board',n),`images/kitchen/boards/${n}.png`));
-    INGREDIENT_FILES.forEach(n=>this.load.image(key('ingredient',n),`images/kitchen/ingredients/${n}.png`));
-    POT_FILES.forEach(n=>this.load.image(key('pot',n),`images/kitchen/pots/${n}.png`));
-    PLATE_FILES.forEach(n=>this.load.image(key('plate',n),`images/kitchen/plates/${n}.png`));
-    KNIFE_FILES.forEach(n=>this.load.image(key('knife',n),`images/kitchen/knives/${n}.png`));
-    this.load.image('kitchen-bg-bottom','images/kitchen/backgrounds/bottomside.png');
-    this.load.image('kitchen-bg-top','images/kitchen/backgrounds/topside.png');
+    BOARD_FILES.forEach(n => this.load.image(`kitchen-board-${n}`, `images/kitchen/boards/${n}.png`));
+    INGREDIENT_FILES.forEach(n => this.load.image(`kitchen-ingredient-${n}`, `images/kitchen/ingredients/${n}.png`));
+    POT_FILES.forEach(n => this.load.image(`kitchen-pot-${n}`, `images/kitchen/pots/${n}.png`));
+    PLATE_FILES.forEach(n => this.load.image(`kitchen-plate-${n}`, `images/kitchen/plates/${n}.png`));
+    KNIFE_FILES.forEach(n => this.load.image(`kitchen-knife-${n}`, `images/kitchen/knives/${n}.png`));
+    this.load.image('kitchen-bg-left', 'images/kitchen/backgrounds/leftside.png');
+    this.load.image('kitchen-bg-right', 'images/kitchen/backgrounds/rightside.png');
+    this.load.image('kitchen-bg-bottom', 'images/kitchen/backgrounds/bottomside.png');
+    this.load.image('kitchen-bg-top', 'images/kitchen/backgrounds/topside.png');
   };
 
-  const resetKitchenState=function(){
-    this._kitchenMode=true;
-    this._kitchenIngredientSets=[];
-    this._kitchenIngredientsCollected=0;
-    this._kitchenIngredientChoices=[];
-    this._kitchenPlateCount=0;
-    this._kitchenPlatePoints=0;
-    this._kitchenPlates=[];
-    this._kitchenHazards=[];
-    this._kitchenPotCells=new Set();
-    this._kitchenKnifeCells=new Set();
-    this._kitchenPlateRows=new Map();
-    this._kitchenIngredientRows=new Map();
+  const baseLevelLength = proto.levelLength;
+  proto.levelLength = function(level) {
+    return Number(level) === 1 ? 26 : baseLevelLength.call(this, level);
   };
 
-  const baseStartLevel=proto.startLevel;
-  proto.startLevel=function(level,opt){
-    const requested=Number(level)||1;
-    if(requested===1)resetKitchenState.call(this);
-    else this._kitchenMode=false;
-    const result=baseStartLevel.call(this,level,opt);
-    const kitchen=this.selectedLevel===1;
-    this._kitchenMode=kitchen;
-    setKitchenFrameVisible(kitchen);
-    if(kitchen){
-      this.cameras?.main?.setRotation?.(0);
-      this._startingBestScore=Number(this.save?.bestScores?.[1])||0;
-    }else{
-      this.cameras?.main?.setRotation?.(S.CAMERA_ROTATION);
+  const baseBuildMenu = proto.buildMenu;
+  proto.buildMenu = function(level) {
+    if (Number(level) === 1) return Array.from({length: 4}, () => KITCHEN_MENU_ITEM);
+    return baseBuildMenu.call(this, level);
+  };
+
+  const baseColX = proto.colX;
+  proto.colX = function(col) {
+    if (!this._kitchenMode) return baseColX.call(this, col);
+    const side = S.clamp(S.W * 0.105, 38, 52);
+    const innerLeft = S.PLAY_X + side + 8;
+    const innerRight = S.PLAY_X + S.PLAY_W - side - 8;
+    const usable = Math.max(1, innerRight - innerLeft);
+    return innerLeft + usable * ((col + 0.5) / S.COLS);
+  };
+
+  const baseStartLevel = proto.startLevel;
+  proto.startLevel = function(level, opt) {
+    const requested = Number(level) || 1;
+    this._kitchenMode = requested === 1;
+    const previousRotation = S.CAMERA_ROTATION;
+    if (this._kitchenMode) S.CAMERA_ROTATION = 0;
+    let result;
+    try {
+      result = baseStartLevel.call(this, level, opt);
+    } finally {
+      S.CAMERA_ROTATION = previousRotation;
+      this._kitchenMode = this.selectedLevel === 1;
+      if (this._kitchenMode) this.cameras.main.setRotation(0);
+      document.body.classList.toggle('kitchen-level-one', this._kitchenMode);
     }
     return result;
   };
 
-  const baseOpenLevelSelect=proto.openLevelSelect;
-  proto.openLevelSelect=function(...args){
-    setKitchenFrameVisible(false);
-    return baseOpenLevelSelect.apply(this,args);
+  const coverImage = (image, targetW, targetH) => {
+    const sourceW = Math.max(1, image.width || 1);
+    const sourceH = Math.max(1, image.height || 1);
+    const targetAspect = targetW / Math.max(1, targetH);
+    const sourceAspect = sourceW / sourceH;
+    if (sourceAspect > targetAspect) {
+      const cropW = Math.max(1, Math.round(sourceH * targetAspect));
+      image.setCrop(Math.max(0, Math.round((sourceW - cropW) / 2)), 0, cropW, sourceH);
+    } else {
+      const cropH = Math.max(1, Math.round(sourceW / targetAspect));
+      image.setCrop(0, Math.max(0, Math.round((sourceH - cropH) / 2)), sourceW, cropH);
+    }
+    image.setDisplaySize(targetW, targetH);
+    return image;
   };
 
-  const baseLevelLength=proto.levelLength;
-  proto.levelLength=function(level){
-    return Number(level)===1?KITCHEN_GOAL_ROW:baseLevelLength.call(this,level);
-  };
-
-  const baseBuildMenu=proto.buildMenu;
-  proto.buildMenu=function(level){
-    if(Number(level)!==1)return baseBuildMenu.call(this,level);
-    return S.ITEMS.slice(0,KITCHEN_INGREDIENT_SLOTS);
-  };
-
-  const baseDescribeRow=proto.describeRow;
-  proto.describeRow=function(i){
-    if(this.selectedLevel!==1)return baseDescribeRow.call(this,i);
-    if(i===0)return {index:i,type:'start',kitchenKind:'start'};
-    if(i>=this.goalRow)return {index:i,type:'goal',kitchenKind:'goal'};
-    const kind=KITCHEN_ROWS[i]||'entry';
-    if(kind==='water')return {index:i,type:'water',kitchenKind:'water'};
-    return {index:i,type:'safe',kitchenKind:kind};
-  };
-
-  const basePlanLandObstacles=proto.planLandObstacles;
-  proto.planLandObstacles=function(){
-    if(this.selectedLevel!==1)return basePlanLandObstacles.call(this);
-    this.blockedCells=new Set();
-    for(const row of this.rows||[])row.obstacles=[];
-  };
-
-  const addRect=function(scene,row,x,y,w,h,color,alpha=1,z=0){
-    const obj=scene.track(scene.add.rectangle(x,y,w,h,color,alpha).setDepth(z));
-    row.objects.push(obj);
+  const addRect = (scene, row, x, y, w, h, color, alpha, depth) => {
+    const obj = scene.track(scene.add.rectangle(x, y, w, h, color, alpha).setDepth(depth));
+    row?.objects?.push(obj);
     return obj;
   };
 
-  const addTextureImage=function(scene,row,x,y,texture,targetHeight,offset=50){
-    if(!scene.textures.exists(texture))return null;
-    const img=scene.add.image(x,y,texture);
-    const scale=targetHeight/Math.max(1,img.height);
-    img.setScale(scale).setDepth(depth(scene,y,offset));
-    img.__rowY=row.y;
-    scene.track(img);row.objects.push(img);
-    return img;
-  };
-
-  const renderCounterBase=function(scene,row,color=0xc9c4ba){
-    const d=4+row.index*2,c=S.TRACK_X+S.TRACK_W/2;
-    addRect(scene,row,c,row.y+5,S.TRACK_W,S.ROW_H,0x504a49,1,d-1);
-    addRect(scene,row,c,row.y,S.TRACK_W,S.ROW_H-5,color,1,d);
-    addRect(scene,row,c,row.y-S.ROW_H*.38,S.TRACK_W,5,0xf3eadc,.68,d+1);
-    addRect(scene,row,c,row.y+S.ROW_H*.38,S.TRACK_W,7,0x7c7470,.9,d+1);
-    return d;
-  };
-
-  const renderConveyor=function(scene,row,accent=0xffffff){
-    const d=renderCounterBase(scene,row,0x5b5d63),c=S.TRACK_X+S.TRACK_W/2;
-    addRect(scene,row,c,row.y,S.TRACK_W,S.ROW_H*.56,0x30343c,1,d+2);
-    addRect(scene,row,c,row.y-S.ROW_H*.25,S.TRACK_W,4,0x878d97,.8,d+3);
-    addRect(scene,row,c,row.y+S.ROW_H*.25,S.TRACK_W,4,0x1f2228,.9,d+3);
-    const arrowCount=Math.max(5,Math.floor(S.PLAY_W/110));
-    for(let i=0;i<arrowCount;i++){
-      const x=S.PLAY_X+(i+.5)*S.PLAY_W/arrowCount;
-      const g=scene.track(scene.add.graphics().setDepth(d+4));
-      g.fillStyle(accent,.42);g.fillTriangle(x-7,row.y-5,x+7,row.y,x-7,row.y+5);
-      row.objects.push(g);
+  const uniqueColumns = (count, minCol = 1, maxCol = S.COLS - 2) => {
+    minCol = S.clamp(minCol, 0, S.COLS - 1);
+    maxCol = S.clamp(maxCol, minCol, S.COLS - 1);
+    const available = maxCol - minCol + 1;
+    const actual = Math.min(count, available);
+    const cols = [];
+    for (let i = 0; i < actual; i++) {
+      let col = Math.round(minCol + ((i + 0.5) / actual) * available - 0.5);
+      col = S.clamp(col, minCol, maxCol);
+      while (cols.includes(col) && col < maxCol) col++;
+      while (cols.includes(col) && col > minCol) col--;
+      if (!cols.includes(col)) cols.push(col);
     }
-    return d;
+    return cols;
   };
 
-  const createRollingSushi=function(scene,row,x,dir,index){
-    const c=scene.add.container(x,row.y-2).setDepth(depth(scene,row.y,58));
-    const g=scene.add.graphics();c.add(g);
-    const cucumber=(index+row.index)%2===1;
-    const w=S.clamp(S.CELL_W*1.05,44,72),h=S.clamp(S.ROW_H*.48,27,34);
-    g.fillStyle(P.shadow,.23);g.fillEllipse(6,9,w*.86,h*.52);
-    if(cucumber){
-      g.fillStyle(0x315f2f,1);g.fillRoundedRect(-w*.5,-h*.34,w,h*.68,8);
-      g.fillStyle(0x86c642,1);g.fillRoundedRect(-w*.38,-h*.24,w*.76,h*.48,6);
-      for(let s=-w*.2;s<=w*.2;s+=w*.2){g.fillStyle(0x436f31,.75);g.fillRect(s-2,-h*.22,4,h*.44);}
-      g.fillStyle(0xd7f07f,.9);g.fillCircle(dir*w*.34,0,4);
-    }else{
-      g.fillStyle(0x171b1b,1);g.fillRoundedRect(-w*.5,-h*.38,w,h*.76,7);
-      g.fillStyle(0xf4efe2,1);g.fillCircle(dir*w*.33,0,h*.27);
-      g.fillStyle(0xee7460,1);g.fillCircle(dir*w*.33,0,h*.11);
+  proto.buildKitchenBackdrop = function() {
+    const sideW = S.clamp(S.W * 0.105, 38, 52);
+    const fixedDepth = 250000;
+
+    if (this.textures.exists('kitchen-bg-left')) {
+      const left = this.track(this.add.image(sideW / 2, S.H / 2, 'kitchen-bg-left')
+        .setScrollFactor(0)
+        .setDepth(fixedDepth));
+      coverImage(left, sideW, S.H);
     }
-    const hazard={obj:c,row:row.index,width:w,vx:dir*(58+scene.selectedLevel*2+(scene.rng?.()??.5)*18),cycleStart:S.PLAY_X-w*1.6,cycleLength:S.PLAY_W+w*3.2};
-    c.__kitchenHazard=hazard;scene._kitchenHazards.push(hazard);scene.track(c);row.objects.push(c);
+    if (this.textures.exists('kitchen-bg-right')) {
+      const right = this.track(this.add.image(S.W - sideW / 2, S.H / 2, 'kitchen-bg-right')
+        .setScrollFactor(0)
+        .setDepth(fixedDepth));
+      coverImage(right, sideW, S.H);
+    }
+
+    const worldX = S.PLAY_X + S.PLAY_W / 2;
+    const innerW = Math.max(120, S.PLAY_W - sideW * 2);
+    const capH = S.clamp(S.ROW_H * 2.55, 145, 190);
+
+    if (this.textures.exists('kitchen-bg-bottom')) {
+      const y = this.rowY(0) + S.ROW_H * 0.92;
+      const bottom = this.track(this.add.image(worldX, y, 'kitchen-bg-bottom')
+        .setDepth(this.depthForY ? this.depthForY(y, -480) : 1));
+      coverImage(bottom, innerW, capH);
+    }
+    if (this.textures.exists('kitchen-bg-top')) {
+      const y = this.rowY(this.goalRow) - S.ROW_H * 0.92;
+      const top = this.track(this.add.image(worldX, y, 'kitchen-bg-top')
+        .setDepth(this.depthForY ? this.depthForY(y, -480) : 1));
+      coverImage(top, innerW, capH);
+    }
+  };
+
+  proto.createKitchenBoard = function(row, x, width, dir, index) {
+    const key = `kitchen-board-${BOARD_FILES[index % BOARD_FILES.length]}`;
+    const depth = this.depthForY ? this.depthForY(row.y, 38) : 80;
+    const c = this.add.container(x, row.y - 1).setDepth(depth);
+    const shadow = this.add.ellipse(4, 9, width * 0.88, S.clamp(S.ROW_H * 0.16, 9, 14), 0x163c55, 0.28);
+    c.add(shadow);
+
+    if (this.textures.exists(key)) {
+      const img = this.add.image(0, 0, key);
+      const scale = width / Math.max(1, img.width);
+      img.setScale(scale).setOrigin(0.5, 0.58).setFlipX(dir < 0 && index % 2 === 1);
+      c.add(img);
+    } else {
+      const g = this.add.graphics();
+      g.fillStyle(0x9a653c, 1);
+      g.fillRoundedRect(-width / 2, -10, width, 20, 4);
+      g.fillStyle(0xc58a55, 0.9);
+      g.fillRect(-width * 0.42, -6, width * 0.84, 4);
+      c.add(g);
+    }
+
+    c.__rowY = row.y;
     return c;
   };
 
-  const renderIngredientRow=function(scene,row){
-    const d=renderCounterBase(scene,row,0xd4d0c8);
-    const set={row:row.index,taken:false,items:[]};
-    const cols=nearestCols(INGREDIENT_FILES.length);
-    INGREDIENT_FILES.forEach((n,i)=>{
-      const col=cols[i],x=scene.colX(col);
-      const img=addTextureImage(scene,row,x,row.y-3,key('ingredient',n),S.clamp(S.ROW_H*.72,38,50),58);
-      if(!img)return;
-      img.__kitchenIngredient={set,file:n,col};set.items.push(img);
-      const tile=scene.track(scene.add.rectangle(x,row.y+S.ROW_H*.29,S.CELL_W*.76,5,0xe9e4dc,.9).setDepth(d+3));row.objects.push(tile);
+  proto.buildKitchenBoards = function(row) {
+    const dir = row.index % 2 === 0 ? 1 : -1;
+    const laneSpeed = (28 + (row.index % 3) * 3) * dir;
+    const width = S.clamp(S.CELL_W * 1.12, 52, 88);
+    const gap = S.clamp(S.CELL_W * 0.62, 30, 48);
+    const sideW = S.clamp(S.W * 0.105, 38, 52);
+    const left = S.PLAY_X + sideW;
+    const right = S.PLAY_X + S.PLAY_W - sideW;
+    const buffer = width + gap;
+    const cycleStart = left - buffer;
+    const cycleLength = (right - left) + buffer * 2;
+    const targetSpacing = width + gap;
+    const count = Math.max(5, Math.floor(cycleLength / targetSpacing));
+    const spacing = cycleLength / count;
+    const phase = (row.index % 2) * Math.min(16, gap * 0.3);
+
+    for (let i = 0; i < count; i++) {
+      const x = cycleStart + phase + i * spacing;
+      const board = this.createKitchenBoard(row, x, width, dir, i + row.index);
+      board.__float = {
+        vx: laneSpeed,
+        width,
+        hitWidth: width * 0.9,
+        kind: 'kitchen-board',
+        stationary: false,
+        left,
+        right,
+        cycleStart,
+        cycleLength
+      };
+      row.floaters.push(board);
+      this.floaters.push(board);
+      this.track(board);
+    }
+  };
+
+  proto.buildKitchenIngredientStation = function(row) {
+    const cols = uniqueColumns(INGREDIENT_FILES.length);
+    const group = {rowIndex: row.index, collected: false, chosen: null, items: []};
+    this.kitchenIngredientGroups.push(group);
+
+    cols.forEach((col, i) => {
+      const file = INGREDIENT_FILES[i % INGREDIENT_FILES.length];
+      const key = `kitchen-ingredient-${file}`;
+      const x = this.colX(col);
+      const y = row.y - 2;
+      const depth = this.depthForY ? this.depthForY(y, 48) : 90;
+      let item;
+
+      if (this.textures.exists(key)) {
+        item = this.add.image(x, y, key).setDepth(depth);
+        const targetH = S.clamp(S.ROW_H * 0.62, 34, 45);
+        item.setScale(targetH / Math.max(1, item.height)).setOrigin(0.5, 0.62);
+      } else {
+        item = this.add.circle(x, y, 13, 0xf8f858, 1).setDepth(depth);
+      }
+
+      item.__rowY = row.y;
+      item.__kitchenIngredient = {file, col, group, points: 12};
+      this.track(item);
+      group.items.push(item);
     });
-    scene._kitchenIngredientSets.push(set);scene._kitchenIngredientRows.set(row.index,set);
-    const label=scene.track(scene.add.text(S.PLAY_X+S.PLAY_W/2,row.y-S.ROW_H*.37,'PICK ONE INGREDIENT',{fontFamily:'Inter,system-ui,sans-serif',fontSize:'9px',fontStyle:'900',color:'#4d4640',backgroundColor:'rgba(255,248,235,.78)',padding:{x:6,y:2}}).setOrigin(.5).setDepth(d+5));row.objects.push(label);
   };
 
-  const renderPlateRow=function(scene,row){
-    renderConveyor(scene,row,0xf8fff6);
-    const candidates=shuffled(scene,PLATE_FILES).slice(0,Math.min(3,PLATE_FILES.length));
-    const cols=nearestCols(candidates.length+2).slice(1,-1);const list=[];
-    candidates.forEach((n,i)=>{
-      const col=cols[i]??S.START_COL,x=scene.colX(col);
-      const img=addTextureImage(scene,row,x,row.y-4,key('plate',n),S.clamp(S.ROW_H*.78,42,54),58);if(!img)return;
-      const data={obj:img,row:row.index,col,file:n,points:PLATE_POINTS[n]||10,collected:false};img.__kitchenPlate=data;list.push(data);scene._kitchenPlates.push(data);
+  proto.buildKitchenPlateRow = function(row) {
+    const count = S.W >= 720 ? 4 : 3;
+    const cols = uniqueColumns(count, 1, S.COLS - 2);
+    const offset = row.index % PLATE_FILES.length;
+
+    cols.forEach((col, i) => {
+      const file = PLATE_FILES[(i + offset) % PLATE_FILES.length];
+      const key = `kitchen-plate-${file}`;
+      const x = this.colX(col);
+      const y = row.y - 2;
+      const depth = this.depthForY ? this.depthForY(y, 48) : 90;
+      let plate;
+
+      if (this.textures.exists(key)) {
+        plate = this.add.image(x, y, key).setDepth(depth);
+        const targetH = S.clamp(S.ROW_H * 0.58, 32, 43);
+        plate.setScale(targetH / Math.max(1, plate.height)).setOrigin(0.5, 0.62);
+      } else {
+        plate = this.add.ellipse(x, y, 40, 18, 0xeffae8, 1).setDepth(depth);
+      }
+
+      plate.__rowY = row.y;
+      plate.__kitchenPlate = {
+        file,
+        points: PLATE_POINTS[file] || 5,
+        collected: false,
+        rowIndex: row.index,
+        hitWidth: S.clamp(S.CELL_W * 0.82, 36, 58)
+      };
+      this.track(plate);
+      this.kitchenPlates.push(plate);
     });
-    scene._kitchenPlateRows.set(row.index,list);
   };
 
-  const renderPotRow=function(scene,row){
-    const d=renderCounterBase(scene,row,0x34363b);const burnerCols=nearestCols(5);
-    burnerCols.forEach((col,i)=>{const x=scene.colX(col);const burner=scene.track(scene.add.ellipse(x,row.y+4,S.CELL_W*.64,S.ROW_H*.36,i%2?0xb93d25:0x17191c,.9).setDepth(d+2));row.objects.push(burner);});
-    const potCols=[burnerCols[0],burnerCols[Math.floor(burnerCols.length/2)],burnerCols[burnerCols.length-1]].filter((v,i,a)=>a.indexOf(v)===i);const pots=shuffled(scene,POT_FILES);
-    potCols.forEach((col,i)=>{const x=scene.colX(col),n=pots[i%pots.length];const img=addTextureImage(scene,row,x,row.y-6,key('pot',n),S.clamp(S.ROW_H*.88,47,61),65);scene.blockedCells.add(`${row.index}:${col}`);scene._kitchenPotCells.add(`${row.index}:${col}`);if(img)img.__kitchenPot=true;});
+  proto.buildKitchenPots = function(row) {
+    const mid = Math.floor(S.COLS / 2);
+    const candidates = row.index % 4 === 0
+      ? [1, mid + 1, S.COLS - 2]
+      : row.index % 4 === 1
+        ? [2, mid - 1, S.COLS - 3]
+        : [1, mid, S.COLS - 3];
+
+    const used = [];
+    candidates.forEach((rawCol, i) => {
+      const col = S.clamp(rawCol, 0, S.COLS - 1);
+      if (used.includes(col)) return;
+      used.push(col);
+      this.blockedCells.add(`${row.index}:${col}`);
+
+      const file = POT_FILES[(i + row.index) % POT_FILES.length];
+      const key = `kitchen-pot-${file}`;
+      const x = this.colX(col);
+      const y = row.y - 4;
+      const depth = this.depthForY ? this.depthForY(y, 54) : 94;
+      let pot;
+
+      if (this.textures.exists(key)) {
+        pot = this.add.image(x, y, key).setDepth(depth);
+        const targetH = S.clamp(S.ROW_H * 0.84, 46, 60);
+        pot.setScale(targetH / Math.max(1, pot.height)).setOrigin(0.5, 0.7);
+      } else {
+        pot = this.add.circle(x, y, 20, 0x24262d, 1).setDepth(depth);
+      }
+      pot.__rowY = row.y;
+      this.track(pot);
+      this.kitchenPots.push(pot);
+    });
   };
 
-  const renderKnifeRow=function(scene,row){
-    renderCounterBase(scene,row,0xc89554);const cols=nearestCols(5);const obstacleCols=[cols[1],cols[3]].filter(v=>Number.isFinite(v));const files=shuffled(scene,KNIFE_FILES);
-    obstacleCols.forEach((col,i)=>{const x=scene.colX(col);const img=addTextureImage(scene,row,x,row.y-2,key('knife',files[i%files.length]),S.clamp(S.ROW_H*.56,31,41),62);if(img){img.setAngle(i%2?4:-4);img.__kitchenKnife=true;}scene.blockedCells.add(`${row.index}:${col}`);scene._kitchenKnifeCells.add(`${row.index}:${col}`);});
+  proto.buildKitchenPrep = function(row) {
+    const cols = uniqueColumns(Math.min(KNIFE_FILES.length, 3), 1, S.COLS - 2);
+    cols.forEach((col, i) => {
+      const file = KNIFE_FILES[i % KNIFE_FILES.length];
+      const key = `kitchen-knife-${file}`;
+      if (!this.textures.exists(key)) return;
+      const knife = this.add.image(this.colX(col), row.y - 2, key)
+        .setDepth(this.depthForY ? this.depthForY(row.y, 35) : 70);
+      const targetH = S.clamp(S.ROW_H * 0.42, 23, 31);
+      knife.setScale(targetH / Math.max(1, knife.height)).setOrigin(0.5, 0.58);
+      knife.__rowY = row.y;
+      this.track(knife);
+    });
   };
 
-  const renderWater=function(scene,row){
-    const d=4+row.index*2,c=S.TRACK_X+S.TRACK_W/2;
-    addRect(scene,row,c,row.y+7,S.TRACK_W,S.ROW_H,0x285f86,1,d-1);addRect(scene,row,c,row.y,S.TRACK_W,S.ROW_H-5,0x42a9d9,1,d);addRect(scene,row,c,row.y-S.ROW_H*.35,S.TRACK_W,5,0x8ae3ff,.75,d+1);addRect(scene,row,c,row.y+S.ROW_H*.36,S.TRACK_W,6,0x2678a9,.9,d+1);
-    const waves=Math.max(8,Math.floor(S.PLAY_W/80));
-    for(let i=0;i<waves;i++){const x=S.PLAY_X+(i+.35)*S.PLAY_W/waves,w=S.clamp(S.CELL_W*(.32+(i%3)*.12),18,42);addRect(scene,row,x,row.y-8+(i%2)*15,w,3,0xd9f7ff,.44,d+2);addRect(scene,row,x+11,row.y+4+(i%3)*8,w*.52,2,0x88daf8,.42,d+2);}
-    scene.buildFloaters(row);
-  };
+  proto.renderKitchenRow = function(row) {
+    const sideW = S.clamp(S.W * 0.105, 38, 52);
+    const left = S.PLAY_X + sideW;
+    const right = S.PLAY_X + S.PLAY_W - sideW;
+    const width = Math.max(120, right - left);
+    const center = (left + right) / 2;
+    const y = row.y;
+    const d = this.depthForY ? this.depthForY(y, -520) : 1;
 
-  const renderStartOrGoal=function(scene,row,goal=false){
-    const d=4+row.index*2,c=S.TRACK_X+S.TRACK_W/2;addRect(scene,row,c,row.y,S.TRACK_W,S.ROW_H,goal?0xc3aaa1:0xc9b8aa,1,d);
-    const texture=goal?'kitchen-bg-top':'kitchen-bg-bottom';
-    if(scene.textures.exists(texture)){const img=scene.add.image(S.PLAY_X+S.PLAY_W/2,row.y+(goal?-S.ROW_H*.56:S.ROW_H*.62),texture);const targetW=S.PLAY_W+8;const scale=targetW/Math.max(1,img.width);img.setScale(scale).setOrigin(.5,goal?.78:.24).setDepth(d+1);scene.track(img);row.objects.push(img);}
-    if(goal){const line=scene.track(scene.add.text(S.PLAY_X+S.PLAY_W/2,row.y+S.ROW_H*.18,'SUSHI PREP • FINISH',{fontFamily:'Inter,system-ui,sans-serif',fontSize:'10px',fontStyle:'900',color:'#fff7ec',backgroundColor:'rgba(50,40,38,.74)',padding:{x:8,y:3}}).setOrigin(.5).setDepth(depth(scene,row.y,40)));row.objects.push(line);}
-  };
+    if (row.type === 'water') {
+      addRect(this, row, center, y + 5, width, S.ROW_H, 0x176b9b, 1, d);
+      addRect(this, row, center, y, width, S.ROW_H - 6, 0x2ea8d5, 1, d + 1);
+      addRect(this, row, center, y - S.ROW_H * 0.31, width, 4, 0x8ae5f5, 0.72, d + 2);
+      const rippleCount = Math.max(7, Math.floor(width / 54));
+      for (let i = 0; i < rippleCount; i++) {
+        const rx = left + ((i + 0.5) / rippleCount) * width;
+        const ry = y + ((i % 3) - 1) * 10;
+        addRect(this, row, rx, ry, S.clamp(S.CELL_W * 0.52, 22, 38), 3, 0xb9f3ff, 0.42, d + 3);
+        addRect(this, row, rx + 8, ry + 5, S.clamp(S.CELL_W * 0.22, 10, 18), 2, 0xffffff, 0.28, d + 4);
+      }
+      this.buildKitchenBoards(row);
+      return;
+    }
 
-  const baseRenderRow=proto.renderRow;
-  proto.renderRow=function(row){
-    if(this.selectedLevel!==1)return baseRenderRow.call(this,row);row.objects=row.objects||[];
-    switch(row.kitchenKind){
-      case 'start':return renderStartOrGoal(this,row,false);case 'goal':return renderStartOrGoal(this,row,true);case 'water':return renderWater(this,row);case 'ingredient':return renderIngredientRow(this,row);case 'plate':return renderPlateRow(this,row);case 'pot':return renderPotRow(this,row);case 'knife':return renderKnifeRow(this,row);
-      case 'roll':{renderConveyor(this,row,0xf8fff6);const dir=row.index%2?1:-1,count=Math.max(2,Math.min(4,Math.floor(S.W/310)+2)),cycleW=S.PLAY_W+S.CELL_W*3;for(let i=0;i<count;i++)createRollingSushi(this,row,S.PLAY_X-S.CELL_W*1.4+(i+.5)*cycleW/count,dir,i);return;}
-      case 'finish':case 'entry':default:{const d=renderCounterBase(this,row,0xd7cec2),c=S.TRACK_X+S.TRACK_W/2;addRect(this,row,c,row.y,S.TRACK_W,S.ROW_H*.14,0xf1e2cd,.62,d+2);}
+    if (row.type === 'kitchenIngredient') {
+      addRect(this, row, center, y + 5, width, S.ROW_H, 0x343941, 1, d);
+      addRect(this, row, center, y, width, S.ROW_H - 7, 0x626a72, 1, d + 1);
+      const cols = uniqueColumns(INGREDIENT_FILES.length);
+      cols.forEach(col => {
+        addRect(this, row, this.colX(col), y, S.clamp(S.CELL_W * 0.86, 36, 56), S.ROW_H * 0.72, 0xe8dfcf, 1, d + 2);
+      });
+      this.buildKitchenIngredientStation(row);
+      return;
+    }
+
+    if (row.type === 'kitchenPots') {
+      addRect(this, row, center, y + 4, width, S.ROW_H, 0x1f252a, 1, d);
+      addRect(this, row, center, y, width, S.ROW_H - 6, 0x32383d, 1, d + 1);
+      const burnerCols = uniqueColumns(Math.min(6, S.COLS - 2), 1, S.COLS - 2);
+      burnerCols.forEach(col => {
+        const ring = this.track(this.add.ellipse(this.colX(col), y + 3, S.clamp(S.CELL_W * 0.55, 28, 40), 16, 0x11151a, 0.92)
+          .setDepth(d + 2));
+        row.objects.push(ring);
+      });
+      this.buildKitchenPots(row);
+      return;
+    }
+
+    if (row.type === 'kitchenPlate') {
+      addRect(this, row, center, y + 5, width, S.ROW_H, 0x272b31, 1, d);
+      addRect(this, row, center, y, width, S.ROW_H - 7, 0x4c535a, 1, d + 1);
+      for (let x = left + 12; x < right - 8; x += 26) {
+        addRect(this, row, x, y + S.ROW_H * 0.28, 12, 3, 0x8c949a, 0.42, d + 2);
+      }
+      this.buildKitchenPlateRow(row);
+      return;
+    }
+
+    if (row.type === 'kitchenPrep') {
+      addRect(this, row, center, y + 5, width, S.ROW_H, 0x8a5a36, 1, d);
+      addRect(this, row, center, y, width, S.ROW_H - 7, 0xc88a52, 1, d + 1);
+      for (let x = left + 20; x < right - 10; x += 62) {
+        addRect(this, row, x, y - S.ROW_H * 0.26, 2, S.ROW_H * 0.56, 0x99613c, 0.4, d + 2);
+      }
+      this.buildKitchenPrep(row);
+      return;
+    }
+
+    if (row.type === 'goal') {
+      addRect(this, row, center, y + 4, width, S.ROW_H, 0xc5b6a2, 1, d);
+      addRect(this, row, center, y, width, S.ROW_H - 6, 0xe7ddd0, 1, d + 1);
+      return;
+    }
+
+    const start = row.type === 'start';
+    addRect(this, row, center, y + 4, width, S.ROW_H, start ? 0xc5b6a2 : 0x8e969d, 1, d);
+    addRect(this, row, center, y, width, S.ROW_H - 6, start ? 0xe8dfd2 : 0xcbd0d3, 1, d + 1);
+    for (let x = left + S.CELL_W * 0.5; x < right; x += S.CELL_W) {
+      addRect(this, row, x, y, 2, S.ROW_H - 10, 0xffffff, 0.22, d + 2);
     }
   };
 
-  const baseBuildFloaters=proto.buildFloaters;
-  proto.buildFloaters=function(row){
-    if(this.selectedLevel!==1)return baseBuildFloaters.call(this,row);
-    const dir=row.index%2?1:-1,boardW=S.clamp(S.CELL_W*1.28,54,84),gap=S.clamp(S.CELL_W*.62,28,43),side=boardW+gap,cycleStart=S.PLAY_X-side,cycleLength=S.PLAY_W+side*2;
-    let count=Math.max(4,Math.floor(cycleLength/(boardW+gap)));const spacing=cycleLength/count,phase=(this.rng?.()??.5)*spacing,files=shuffled(this,BOARD_FILES),rowSpeed=dir*(38+(this.rng?.()??.5)*10);
-    for(let i=0;i<count;i++){
-      const n=files[i%files.length];if(!this.textures.exists(key('board',n)))continue;
-      const img=this.add.image(cycleStart+phase+i*spacing,row.y-2,key('board',n));const scale=boardW/Math.max(1,img.width);img.setScale(scale).setDepth(depth(this,row.y,38));img.__rowY=row.y;
-      img.__float={vx:rowSpeed,width:boardW,hitWidth:boardW*.82,kind:'kitchen-board',stationary:false,left:S.PLAY_X,right:S.PLAY_X+S.PLAY_W,cycleStart,cycleLength};row.floaters.push(img);this.floaters.push(img);this.track(img);row.objects.push(img);
+  const baseBuildRows = proto.buildRows;
+  proto.buildRows = function() {
+    if (!this._kitchenMode) return baseBuildRows.call(this);
+
+    this.rows = [];
+    this.vehicles = [];
+    this.floaters = [];
+    this.pickups = [];
+    this.trains = [];
+    this.trainRows = [];
+    this.blockedCells = new Set();
+    this.kitchenIngredientGroups = [];
+    this.kitchenIngredientInventory = [];
+    this.kitchenPlates = [];
+    this.kitchenPlateCount = 0;
+    this.kitchenPots = [];
+
+    const pattern = {
+      0: 'start',
+      1: 'kitchenPlate',
+      2: 'kitchenSafe',
+      3: 'water',
+      4: 'water',
+      5: 'kitchenIngredient',
+      6: 'kitchenSafe',
+      7: 'kitchenPots',
+      8: 'kitchenPots',
+      9: 'kitchenSafe',
+      10: 'kitchenPlate',
+      11: 'kitchenSafe',
+      12: 'water',
+      13: 'water',
+      14: 'kitchenIngredient',
+      15: 'kitchenPrep',
+      16: 'kitchenPots',
+      17: 'kitchenSafe',
+      18: 'kitchenPlate',
+      19: 'kitchenIngredient',
+      20: 'kitchenSafe',
+      21: 'water',
+      22: 'water',
+      23: 'kitchenPots',
+      24: 'kitchenPlate',
+      25: 'kitchenIngredient',
+      26: 'goal'
+    };
+
+    this.buildKitchenBackdrop();
+
+    for (let i = 0; i <= this.goalRow; i++) {
+      const row = {
+        index: i,
+        type: pattern[i] || 'kitchenSafe',
+        y: this.rowY(i),
+        objects: [],
+        vehicles: [],
+        floaters: [],
+        pickups: [],
+        obstacles: []
+      };
+      this.rows[i] = row;
+      this.renderKitchenRow(row);
     }
   };
 
-  const baseRequestMove=proto.requestMove;
-  proto.requestMove=function(dx,dy){
-    if(this.selectedLevel===1&&this.player){
-      const col=S.clamp(this.playerCol+dx,0,S.COLS-1),row=S.clamp(this.playerRow+dy,0,this.goalRow);
-      if(col<1||col>S.COLS-2){this.playSfx?.('bump');return;}
-      const pot=this._kitchenPotCells?.has(`${row}:${col}`),knife=this._kitchenKnifeCells?.has(`${row}:${col}`);
-      if(pot||knife){this.beginRunClock?.();return this.failRun(pot?'HOT POT!':'KNIFE BLOCK!',pot?'The chef ran straight into a hot pot. Hop through the open burner gaps.':'The prep knife blocked the landing. Use the open counter space.','traffic');}
-    }
-    return baseRequestMove.call(this,dx,dy);
-  };
+  const baseCollectAt = proto.collectAt;
+  proto.collectAt = function(rowIndex) {
+    baseCollectAt.call(this, rowIndex);
+    if (!this._kitchenMode) return;
 
-  const baseCollectAt=proto.collectAt;
-  proto.collectAt=function(rowIndex){
-    if(this.selectedLevel!==1)return baseCollectAt.call(this,rowIndex);
-    const set=this._kitchenIngredientRows?.get(rowIndex);
-    if(set&&!set.taken){
-      let chosen=null;for(const img of set.items){const data=img.__kitchenIngredient;if(data&&Math.abs(this.player.x-img.x)<=S.CELL_W*.48){chosen=img;break;}}
-      if(chosen){
-        set.taken=true;this._kitchenIngredientsCollected++;const data=chosen.__kitchenIngredient;this._kitchenIngredientChoices.push(data.file);const item=S.ITEMS[(data.file-1)%S.ITEMS.length];this.score+=item?.points||10;this.playSfx?.('pickup');this.animatePickupToBag?.(chosen,item||S.ITEMS[0]);
-        for(const img of set.items){if(img===chosen){this.tweens.add({targets:img,scaleX:img.scaleX*1.12,scaleY:img.scaleY*1.12,alpha:.12,duration:240,ease:'Quad.Out',onComplete:()=>img.setVisible(false)});}else{img.setTint?.(0x777777);img.setAlpha(.38);}}
-        const msg=this.track(this.add.text(chosen.x,chosen.y-S.ROW_H*.7,`INGREDIENT +${item?.points||10}`,{fontFamily:'Inter,system-ui,sans-serif',fontSize:'11px',fontStyle:'900',color:'#182229',backgroundColor:'#f8f858',padding:{x:7,y:3}}).setOrigin(.5).setDepth(depth(this,chosen.y,90)));this.tweens.add({targets:msg,y:msg.y-18,alpha:0,duration:480,onComplete:()=>msg.destroy()});
+    const group = this.kitchenIngredientGroups?.find(g => g.rowIndex === rowIndex && !g.collected);
+    if (group) {
+      const hit = group.items.find(item => item?.active && Math.abs(item.x - this.player.x) <= S.clamp(S.CELL_W * 0.42, 18, 30));
+      if (hit) {
+        group.collected = true;
+        group.chosen = hit.__kitchenIngredient?.file || 1;
+        this.kitchenIngredientInventory.push(group.chosen);
+        this.menuCollected.kitchenChoice = (this.menuCollected.kitchenChoice || 0) + 1;
+        this.score += hit.__kitchenIngredient?.points || 12;
+        this.playSfx?.('pickup');
+
+        group.items.forEach(item => {
+          if (!item?.active) return;
+          if (item === hit) {
+            this.tweens.add({
+              targets: item,
+              y: item.y - 16,
+              scaleX: item.scaleX * 1.12,
+              scaleY: item.scaleY * 1.12,
+              alpha: 0,
+              duration: 260,
+              ease: 'Quad.Out'
+            });
+          } else {
+            item.setTint?.(0x777777);
+            item.setAlpha?.(0.34);
+          }
+        });
+
+        const label = this.track(this.add.text(hit.x, hit.y - 36, 'INGREDIENT +12', {
+          fontFamily: 'Inter,system-ui,sans-serif',
+          fontSize: '12px',
+          fontStyle: '900',
+          color: '#17212a',
+          backgroundColor: '#f8f858',
+          padding: {x: 7, y: 4}
+        }).setOrigin(0.5).setDepth(this.depthForY ? this.depthForY(hit.y, 110) : 140));
+        this.tweens.add({targets: label, y: label.y - 18, alpha: 0, duration: 520, onComplete: () => label.destroy()});
       }
     }
-    const plates=this._kitchenPlateRows?.get(rowIndex)||[];
-    for(const p of plates){if(p.collected||!p.obj?.visible||Math.abs(this.player.x-p.obj.x)>S.CELL_W*.45)continue;p.collected=true;this._kitchenPlateCount++;this._kitchenPlatePoints+=p.points;this.score+=p.points;this.playSfx?.('pickup');const msg=this.track(this.add.text(p.obj.x,p.obj.y-S.ROW_H*.62,`PLATE +${p.points}`,{fontFamily:'Inter,system-ui,sans-serif',fontSize:'11px',fontStyle:'900',color:'#fff',backgroundColor:'#3d586f',padding:{x:7,y:3}}).setOrigin(.5).setDepth(depth(this,p.obj.y,90)));this.tweens.add({targets:p.obj,alpha:0,scaleX:p.obj.scaleX*.55,scaleY:p.obj.scaleY*.55,duration:180,onComplete:()=>p.obj.setVisible(false)});this.tweens.add({targets:msg,y:msg.y-18,alpha:0,duration:480,onComplete:()=>msg.destroy()});}
-    this.updateHud?.();
+
+    for (const plate of this.kitchenPlates || []) {
+      const meta = plate?.__kitchenPlate;
+      if (!plate?.active || !meta || meta.collected || meta.rowIndex !== rowIndex) continue;
+      if (Math.abs(plate.x - this.player.x) > meta.hitWidth * 0.5) continue;
+
+      meta.collected = true;
+      this.kitchenPlateCount = (this.kitchenPlateCount || 0) + 1;
+      this.score += meta.points;
+      this.playSfx?.('pickup');
+
+      const label = this.track(this.add.text(plate.x, plate.y - 30, `PLATE +${meta.points}`, {
+        fontFamily: 'Inter,system-ui,sans-serif',
+        fontSize: '12px',
+        fontStyle: '900',
+        color: '#17212a',
+        backgroundColor: '#effae8',
+        padding: {x: 7, y: 4}
+      }).setOrigin(0.5).setDepth(this.depthForY ? this.depthForY(plate.y, 110) : 140));
+
+      this.tweens.add({targets: plate, y: plate.y - 14, alpha: 0, scaleX: plate.scaleX * 0.75, scaleY: plate.scaleY * 0.75, duration: 220});
+      this.tweens.add({targets: label, y: label.y - 16, alpha: 0, duration: 500, onComplete: () => label.destroy()});
+    }
+
+    this.updateHud();
   };
 
-  const baseCollectedCount=proto.collectedCount;proto.collectedCount=function(){return this.selectedLevel===1?(this._kitchenIngredientsCollected||0):baseCollectedCount.call(this);};
-  const baseRequiredCount=proto.requiredCount;proto.requiredCount=function(){return this.selectedLevel===1?KITCHEN_INGREDIENT_SLOTS:baseRequiredCount.call(this);};
-  const baseMinimumCount=proto.minimumCount;proto.minimumCount=function(){return this.selectedLevel===1?KITCHEN_INGREDIENT_MIN:baseMinimumCount.call(this);};
-  const baseMenuRatio=proto.menuRatio;proto.menuRatio=function(){return this.selectedLevel===1?Math.min(1,(this._kitchenIngredientsCollected||0)/KITCHEN_INGREDIENT_SLOTS):baseMenuRatio.call(this);};
+  const baseUpdateHud = proto.updateHud;
+  proto.updateHud = function(...args) {
+    const result = baseUpdateHud.apply(this, args);
+    const title = document.querySelector('.minimum-copy span');
+    const labels = document.querySelectorAll('.minimum-labels span');
 
-  const baseUpdateHud=proto.updateHud;
-  proto.updateHud=function(...args){
-    const result=baseUpdateHud.apply(this,args);
-    if(this.selectedLevel===1){
-      const got=this._kitchenIngredientsCollected||0,plates=this._kitchenPlateCount||0,ingProgress=Math.min(1,got/KITCHEN_INGREDIENT_MIN),plateProgress=Math.min(1,plates/KITCHEN_PLATE_MIN),openProgress=Math.round(Math.min(ingProgress,plateProgress)*100),label=document.querySelector('.minimum-copy span');
-      if(label)label.textContent='KITCHEN ORDER';if(U.minimumText)U.minimumText.textContent=`ING ${got}/${KITCHEN_INGREDIENT_MIN} • PLATES ${plates}/${KITCHEN_PLATE_MIN}`;if(U.minimumFill)U.minimumFill.style.width=`${openProgress}%`;U.minimumPanel?.classList.toggle('ready',got>=KITCHEN_INGREDIENT_MIN&&plates>=KITCHEN_PLATE_MIN);
-    }else{const label=document.querySelector('.minimum-copy span');if(label)label.textContent='INGREDIENTS';}
+    if (this._kitchenMode) {
+      const ingredients = this.collectedCount();
+      const ingredientNeed = this.minimumCount();
+      const plates = this.kitchenPlateCount || 0;
+      const ingredientReady = Math.min(1, ingredients / Math.max(1, ingredientNeed));
+      const plateReady = Math.min(1, plates / PLATES_NEEDED);
+      const readyPct = Math.round((ingredientReady + plateReady) * 50);
+
+      if (title) title.textContent = 'KITCHEN';
+      if (U.minimumText) U.minimumText.textContent = `ING ${ingredients}/${this.requiredCount()} · PLATES ${plates}/${PLATES_NEEDED}`;
+      if (U.minimumFill) U.minimumFill.style.width = `${readyPct}%`;
+      U.minimumPanel?.classList.toggle('ready', ingredients >= ingredientNeed && plates >= PLATES_NEEDED);
+      if (labels[0]) labels[0].textContent = '0';
+      if (labels[1]) labels[1].textContent = 'OPEN';
+      if (labels[2]) labels[2].textContent = 'READY';
+    } else {
+      if (title) title.textContent = 'INGREDIENTS';
+      if (labels[0]) labels[0].textContent = '0';
+      if (labels[1]) labels[1].textContent = 'MIN 50%';
+      if (labels[2]) labels[2].textContent = 'ALL';
+    }
     return result;
   };
 
-  const baseFinishDelivery=proto.finishDelivery;
-  proto.finishDelivery=function(){
-    if(this.selectedLevel!==1)return baseFinishDelivery.call(this);if(this.runEnded)return;
-    const got=this._kitchenIngredientsCollected||0,plates=this._kitchenPlateCount||0;
-    if(got<KITCHEN_INGREDIENT_MIN||plates<KITCHEN_PLATE_MIN){
-      this.runEnded=true;this.inputLocked=true;this.clearBufferedMove?.();this.cancelGesture?.();this.showRestaurantClosedSign?.();const missing=[];
-      if(got<KITCHEN_INGREDIENT_MIN)missing.push(`${KITCHEN_INGREDIENT_MIN-got} more ingredient${KITCHEN_INGREDIENT_MIN-got===1?'':'s'}`);if(plates<KITCHEN_PLATE_MIN)missing.push(`${KITCHEN_PLATE_MIN-plates} more plate${KITCHEN_PLATE_MIN-plates===1?'':'s'}`);
-      const body=`You reached the sushi counter, but you still need ${missing.join(' and ')}. Pick one ingredient from each choice belt and collect enough plates, then try again.`;this.time.delayedCall(400,()=>{if(this.runEnded)this.showResult(false,'ORDER NOT READY',body,0);});return;
+  const baseFailRun = proto.failRun;
+  proto.failRun = function(title, body, cause) {
+    if (this._kitchenMode && cause === 'water') {
+      body = 'You missed the floating board. Land directly on a moving kitchen board to cross the water.';
     }
+    return baseFailRun.call(this, title, body, cause);
+  };
+
+  const baseFinishDelivery = proto.finishDelivery;
+  proto.finishDelivery = function() {
+    if (!this._kitchenMode) return baseFinishDelivery.call(this);
+
+    if (this.collectedCount() < this.minimumCount()) {
+      return baseFinishDelivery.call(this);
+    }
+
+    if ((this.kitchenPlateCount || 0) < PLATES_NEEDED) {
+      if (this.runEnded) return;
+      this.runEnded = true;
+      this.inputLocked = true;
+      this.clearBufferedMove?.();
+      this.cancelGesture?.();
+      this.showRestaurantClosedSign?.();
+
+      const body = `You collected ${this.kitchenPlateCount || 0} of ${PLATES_NEEDED} plates. Grab at least ${PLATES_NEEDED} plates on the kitchen belts before reaching the chef.`;
+      this.time.delayedCall(450, () => {
+        if (this.runEnded) this.showResult(false, 'NOT ENOUGH PLATES', body, 0);
+      });
+      return;
+    }
+
     return baseFinishDelivery.call(this);
   };
 
-  const baseUpdate=proto.update;
-  proto.update=function(time,delta){
-    baseUpdate.call(this,time,delta);if(this.selectedLevel!==1||this.runEnded||!this.runActive||!this.player)return;const dt=Math.min(delta,40)/1000;
-    for(const h of this._kitchenHazards||[]){const o=h.obj;if(!o?.active)continue;const next=o.x+h.vx*dt;o.x=h.cycleStart+((((next-h.cycleStart)%h.cycleLength)+h.cycleLength)%h.cycleLength);if(this.playerRow===h.row&&!this.isMoving&&Math.abs(o.x-this.player.x)<=h.width*.46){this.player?.setVisible?.(false);this.playerArt?.setVisible?.(false);this.playerShadow?.setVisible?.(false);this.failRun('SUSHI ROLL HIT','A rolling sushi piece knocked the chef off the prep line. Read the belt direction and hop through the gap.','traffic');break;}}
-  };
+  const baseShowResult = proto.showResult;
+  proto.showResult = function(success, title, body, revenue) {
+    const result = baseShowResult.call(this, success, title, body, revenue);
+    if (!this._kitchenMode) return result;
 
-  ensureFrame();
+    if (success && U.body) {
+      U.body.textContent = 'You have enough ingredients and plates. Your restaurant can now open.';
+    }
+
+    if (U.stats && !U.stats.querySelector('[data-kitchen-plates]')) {
+      const stat = document.createElement('div');
+      stat.className = 'modal-stat';
+      stat.dataset.kitchenPlates = '1';
+      stat.innerHTML = `<span>PLATES</span><b>${this.kitchenPlateCount || 0}/${PLATES_NEEDED}</b>`;
+      U.stats.appendChild(stat);
+    }
+    return result;
+  };
 })();
