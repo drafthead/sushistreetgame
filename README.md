@@ -54,16 +54,11 @@ The renderer must **resize the universe, not stretch the picture**. Phaser now u
 
 ## Vehicle direction
 
-Cars and trucks have an explicit front and rear. The short nose/cab sits on the **direction-of-travel side**, while the longer body or cargo mass trails behind it. A yellow headlight marks the travel end and a red tail light marks the rear. This makes the silhouette agree with the vehicle's motion even under the diagonal camera.
+Cars and trucks have an explicit front and rear. The short low nose sits on the **direction-of-travel side**, while the taller body/cab sits toward the rear. A yellow headlight marks the travel end and a red tail light marks the rear. This makes the silhouette agree with the vehicle's motion even under the diagonal camera.
 
 ## River stepping-stone rule
 
-Green lily pads are stationary. Their columns are chosen deterministically-randomly for each water row, with two constraints:
-
-- pads on the same row do not bunch directly beside one another;
-- a pad is never placed in the same column as a pad on the immediately previous water row.
-
-That prevents the river from turning into straight vertical pad ladders while keeping logs as the moving supports.
+Green lily pads are stationary. A two-row river section now separates support types by lane: the first water row contains moving logs, and the next water row contains stationary lily pads. Pads are deterministically randomized across gameplay columns and do not bunch directly beside one another. Because logs and pads are never spawned on the same logical water row, a moving log cannot pass over or through a fixed pad.
 
 ## Ingredient spacing rule
 
@@ -118,12 +113,12 @@ As a result, two cars in the same lane cannot slowly catch each other, overlap, 
 
 ## Rivers
 
-Water rows contain two different support behaviors:
+River sections use two distinct support rows:
 
-- **logs move** horizontally and carry the chef with them;
-- **green lily pads never move** and act as permanent stepping stones.
+- the first water row contains **moving logs** that carry the chef;
+- the next water row contains **stationary green lily pads**.
 
-The stationary pads are placed on actual gameplay columns so the player can intentionally ride a moving log and jump onto a fixed pad. Missing every support causes the splash-down failure.
+This keeps logs from crossing over lily pads and creates the intended log-to-pad jump. Missing every support causes the splash-down failure.
 
 ## Ingredient HUD
 
@@ -151,6 +146,18 @@ Ingredient shop rows use wide rectangular pickup areas rather than one exact gri
 - Passing an uncollected ingredient row turns its area red and shows **MISSED**.
 - Backtracking to that row or earlier clears the missed state so the ingredient can still be recovered.
 
+The pickup itself is rendered as a larger market stall/storefront rather than a small package, and the old brown street-label-style target has been removed.
+
+## Sushi master selection
+
+The assets were verified on `origin/main`. The menu now exposes three Sushi Masters and remembers the selected one in the existing save object:
+
+- **Slicey McDicey** — `images/sushimasters/1/front.png` / `images/sushimasters/1/back.png`
+- **Kyoto O Sushi** — `images/sushimasters/2/front.png` / `images/sushimasters/2/back.png`
+- **Nigiri McFlurry** — `images/sushimasters/3/front.png` / `images/sushimasters/3/back.png`
+
+The **front** image is used in the Menu / Levels selector. During gameplay, the selected master's **back** image is used so the chef faces into the route. The sprite is scaled from a fixed target width with uniform scale, preserving the image's aspect ratio, and the separate gameplay shadow remains underneath it. Chef 1 is the default.
+
 ## Progression
 
 - 20 levels.
@@ -176,9 +183,9 @@ See `PHASER_LIFECYCLE.md` for details.
 
 - `index.html` — full-screen shell, compact HUD, loader, result/menu modal.
 - `style.css` — palette, compact progress HUD, loader, modal styling.
-- `sushi-config.js` — viewport sizing, full-width world/overscan, diagonal camera constants, palette, themes, item catalog.
-- `sushi-scene.js` — direct-start scene, input, full-width camera/world setup, level setup, menu flow.
-- `sushi-visuals.js` — voxel terrain, separated traffic, stationary lily pads, moving logs, chef, pickups, shadows.
+- `sushi-config.js` — viewport sizing, full-width world/overscan, diagonal camera constants, palette, themes, item and Sushi Master catalogs.
+- `sushi-scene.js` — direct-start scene, Sushi Master preload/selection, input, full-width camera/world setup, level setup, menu flow.
+- `sushi-visuals.js` — voxel terrain, corrected traffic silhouettes, separate log/pad river rows, Sushi Master sprite, market stalls, water effects, shadows.
 - `sushi-gameplay.js` — movement, ingredient progress, camera pressure, pickups, MISSED feedback, scoring, hazards.
 - `sushi-boot.js` — Phaser boot at the launch viewport dimensions.
 - `lifecycle.js` — pause/resume/cleanup behavior.
