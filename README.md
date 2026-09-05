@@ -48,6 +48,27 @@ Sushi Street now applies a small camera rotation of approximately **5.5°**. Bec
 
 The gameplay grid and collision rules stay discrete and predictable underneath the presentation. The angled camera changes how the world is seen, not which logical lane the player occupies.
 
+## Aspect-ratio and geometry rules
+
+The renderer must **resize the universe, not stretch the picture**. Phaser now uses `Scale.RESIZE`, so the renderer backing buffer changes with the actual parent viewport instead of letting CSS scale a fixed canvas. World units are kept close to a constant size: wide screens gain more columns and more world area, while cars, text, the chef, lane height, and pickups keep approximately the same pixel proportions. Material width/orientation changes trigger a deterministic level rebuild using the new geometry.
+
+## Vehicle direction
+
+Cars and trucks have an explicit front and rear. The short nose/cab sits on the **direction-of-travel side**, while the longer body or cargo mass trails behind it. A yellow headlight marks the travel end and a red tail light marks the rear. This makes the silhouette agree with the vehicle's motion even under the diagonal camera.
+
+## River stepping-stone rule
+
+Green lily pads are stationary. Their columns are chosen deterministically-randomly for each water row, with two constraints:
+
+- pads on the same row do not bunch directly beside one another;
+- a pad is never placed in the same column as a pad on the immediately previous water row.
+
+That prevents the river from turning into straight vertical pad ladders while keeping logs as the moving supports.
+
+## Ingredient spacing rule
+
+Every requested ingredient receives its own shop row. Consecutive ingredient rows are separated by at least **four row indices**, which means there are always at least **three complete gameplay lines between pickups**. This gives the player time to cross traffic or reposition laterally before the next required collection opportunity.
+
 ## Visual palette
 
 The palette below was sampled approximately from the supplied reference screenshot. Large flat terrain colors establish readability; darker side faces and offset shadows create the block-like 3D illusion.
