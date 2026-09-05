@@ -42,13 +42,17 @@ On contact the chef is input-locked, tinted bright red for a short burn beat, th
 
 ## Flying sushi
 
-Flying-sushi hazard rows use `images/kitchen/flyingsushi/1.png`. The image moves quickly across the row. Spacing is calculated from lane width and speed so a hazard crosses a given point roughly every two seconds. Contact ends the run.
+Flying-sushi hazard rows use `images/kitchen/flyingsushi/1.png`. The image moves quickly across the row, with spacing calculated so a hazard crosses a given point roughly every two seconds. Contact ends the run.
+
+The display target is now **4× the original prototype size**: roughly 120–168 px high depending on the active row geometry, with uniform scaling so the source aspect ratio is preserved. Collision width follows the enlarged visible artwork.
 
 Future `2.png`, `3.png`, and `4.png` assets can be added to the explicit asset list when they exist in the folder.
 
 ## Responsive kitchen frame
 
-The side background images are no longer stretched into tall narrow strips. Each side image keeps its original aspect ratio and is scaled uniformly by viewport height, then positioned mostly outside the canvas so only about **20–40 pixels per side** remain visible.
+The side background images are rendered as a fixed DOM overlay rather than Phaser world objects. This prevents camera scroll/overscan math from pushing them out of view.
+
+Each side image keeps its natural aspect ratio, scales by viewport height, and is parked mostly outside the viewport. Only about **20–40 pixels of the inside edge** remains visible on the left and right, with 24 px used on small phone widths. The overlay is below the HUD but above the game canvas.
 
 `bottomside.png` is scaled uniformly so its width equals the viewport width, anchored to the bottom edge of the initial Level 1 view, and allowed to extend upward at its natural aspect ratio.
 
@@ -58,4 +62,4 @@ Level 1 uses a straight camera. Other levels keep the normal Sushi Street camera
 
 ## Implementation
 
-The original prototype remains in `sushi-kitchen-level1.js`. The current visual/mechanic polish is layered in `sushi-kitchen-level1-v2.js`, loaded immediately afterward and before `sushi-boot.js`, so these overrides affect Level 1 only.
+The original prototype remains in `sushi-kitchen-level1.js`. Tile/hazard mechanics are layered in `sushi-kitchen-level1-v2.js`, and the current side-frame plus enlarged-flying-sushi corrections are layered in `sushi-kitchen-level1-v3.js`. Both load before `sushi-boot.js`, so the overrides affect Level 1 only.
