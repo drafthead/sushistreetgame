@@ -54,11 +54,11 @@
       }
     });
 
-    // The fish reaches/stops on the chef at about 350 ms. Leave the mouth open
-    // for another half-second, then swap to the closed-mouth artwork so it
-    // visibly looks like the chef was swallowed before the result overlay.
+    // The fish's existing lunge lasts about 350 ms. Close the mouth just before
+    // that movement finishes so the bite happens as the fish settles, instead
+    // of leaving the mouth open after it has already stopped.
     if(closedImg){
-      this.time.delayedCall(850,()=>{
+      this.time.delayedCall(305,()=>{
         if(!c.active||!this.runEnded)return;
         openImg.setVisible(false);
         closedImg.setVisible(true);
