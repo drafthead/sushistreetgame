@@ -1,7 +1,5 @@
 /* Level 1 kitchen prototype. Side art is a fixed viewport frame; gameplay remains responsive beneath it. */
 #kitchen-side-frame{
-  /* Bring another 80 px of each side illustration inward from the previous
-     92–112 px rail while keeping the outside edge pinned to the viewport. */
   --kitchen-side-visible:clamp(172px,13vw,192px);
   --kitchen-parallax-left:0px;
   --kitchen-parallax-right:0px;
@@ -21,36 +19,36 @@ body.kitchen-level-one #kitchen-side-frame,
   opacity:1!important;
 }
 
-/* Use the real side PNGs. Give each image extra vertical bleed so it can move
-   downward as the player advances without exposing a gap at the top. This
-   turns the formerly static rails into a simple world-progress parallax layer. */
-#kitchen-side-frame .kitchen-side{
-  display:block!important;
+/* Infinite side scenery. The actual PNG is repeated vertically rather than
+   stretched to one viewport. As the chef moves forward/up, these repeated
+   strips move downward, which makes the kitchen walls feel like they are
+   passing by the player. A 150% background width keeps the crop focused on the
+   visible interior of the source art instead of its outer transparent edge. */
+#kitchen-side-frame .kitchen-side{display:none!important}
+#kitchen-side-frame::before,
+#kitchen-side-frame::after{
+  content:"";
   position:absolute;
-  top:-220px;
-  bottom:auto;
+  top:0;
+  bottom:0;
   width:var(--kitchen-side-visible);
-  height:calc(100dvh + 440px);
-  max-width:none;
-  max-height:none;
-  object-fit:cover;
+  background-repeat:repeat-y;
+  background-size:150% auto;
   filter:saturate(1.04) contrast(1.03);
-  will-change:transform;
-  backface-visibility:hidden;
+  will-change:background-position;
 }
-#kitchen-side-frame .kitchen-side-left{
+#kitchen-side-frame::before{
   left:0;
-  object-position:82% 100%;
-  transform:translate3d(0,var(--kitchen-parallax-left),0);
+  background-image:url('images/kitchen/backgrounds/leftside.png');
+  background-position:82% var(--kitchen-parallax-left);
 }
-#kitchen-side-frame .kitchen-side-right{
+#kitchen-side-frame::after{
   right:0;
-  object-position:18% 100%;
-  transform:translate3d(0,var(--kitchen-parallax-right),0);
+  background-image:url('images/kitchen/backgrounds/rightside.png');
+  background-position:18% var(--kitchen-parallax-right);
 }
 
-/* Keep controls above the decorative rails; rails stay well above the Phaser
-   canvas so they cannot disappear behind gameplay. */
+/* Keep controls above the decorative rails; rails stay above the Phaser canvas. */
 body.kitchen-level-one #hud{z-index:320}
 
 body.kitchen-level-one .minimum-marker,
@@ -64,5 +62,6 @@ body.kitchen-level-one .minimum-track{margin-top:7px}
   body.kitchen-level-one #minimum-text{font-size:10px}
 }
 @media(prefers-reduced-motion:reduce){
-  #kitchen-side-frame .kitchen-side{transform:none!important}
+  #kitchen-side-frame::before,
+  #kitchen-side-frame::after{will-change:auto}
 }
