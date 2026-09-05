@@ -1,104 +1,78 @@
-# Sushi Street — MVP game design
+# Sushi Street Game Design
 
-## Core fantasy
+## Elevator pitch
 
-You are the morning runner for a sushi restaurant. The chef gives you **Today's Menu**. You cross a busy market district, visit the correct side shops, collect ingredients, and deliver what you found to the restaurant.
+Sushi Street is a one-hop-per-lane delivery game. A blocky sushi chef crosses roads and canals, raids market shops for today's ingredients, and reaches the restaurant before traffic, water, or the giant sushi fish ends the run.
 
-The movement vocabulary is intentionally simple: every action is a hop.
+## Design principles
 
-## Why shops are on safe rows
+### 1. One hop must equal one readable unit
 
-A direct Crossy Road-style pressure model can punish lateral exploration because the player normally wants to keep moving forward. Sushi Street needs the opposite tension: the player should sometimes choose to spend several hops moving left or right.
+Each road row is one traffic lane and one movement step. If two road rows are adjacent, the dashed road line is drawn on the boundary between them. This makes the visual segmentation and gameplay grid agree.
 
-The solution in this MVP is a repeating rhythm:
+### 2. Start with motion, not menus
 
-**traffic lanes → safe market row → traffic lanes → safe market row**
+The first screen after the loader is gameplay. Traffic and river supports are already moving. The timer and idle predator do not begin until the first valid player hop.
 
-Ingredient pickups are placed on the far side of safe market rows. The player gets a readable planning beat, crosses sideways, collects the item, then chooses when to push into traffic again.
+### 3. Voxel readability without a 3D engine
 
-## Camera model
+The reference look uses simple cuboid forms, a small palette, and consistent directional lighting. Sushi Street reproduces that design principle in Phaser 2D:
 
-- Forward progress moves the camera target.
-- Sideways movement does not push the camera forward.
-- Backtracking is allowed, but only four rows behind the player's furthest progress.
-- The player can get ahead of the camera temporarily; camera easing catches up.
-- If the player gets very high on screen, the camera catch-up lerp becomes faster.
+- brighter top face;
+- darker front face;
+- darkest right face;
+- cast shadow down/right;
+- crisp, square silhouettes;
+- minimal surface detail.
 
-This keeps the “move ahead, camera catches up” arcade feel without a harsh scrolling deadline during shopping.
+The hero, vehicles, logs, scenery, pickups, and restaurant all share that rule.
 
-## Level curve
+### 4. Ingredient routing differentiates Sushi Street
 
-There are 20 levels.
+Unlike a pure survival hopper, Sushi Street requires lateral movement. Safe shop rows give the player room to move several columns sideways to grab required ingredients.
 
-| Level | Forward rows |
-|---|---:|
-| 1 | 30 |
-| 2 | 34 |
-| 3 | 38 |
-| ... | +4 each level |
-| 20 | 106 |
+## Current hazards
 
-Difficulty also increases through traffic speed and, later, occasional 3-vehicle lanes.
+- **Roads**: moving cars and trucks.
+- **Canals**: landing on open water triggers a splash death.
+- **Moving river supports**: lily pads and logs carry the player sideways.
+- **Idle predator**: after the run begins, waiting too long summons a giant sushi fish.
 
-## Menu size
+## Scoring
 
-- Levels 1–3: 4 pickups.
-- Then the menu grows gradually, capped at 8 pickups.
-- More ingredient types enter the available pool over the campaign.
+- Every hop = 1 point.
+- Ingredient pickups add their item value.
+- Delivery adds a small completion bonus.
 
-## Ingredient values
+Ingredient values:
 
-| Ingredient | Points |
-|---|---:|
-| Rice | 5 |
-| Nori | 6 |
-| Cucumber | 7 |
-| Avocado | 8 |
-| Tuna | 10 |
-| Salmon | 12 |
-| Shrimp | 14 |
-| Uni | 18 |
+- Rice 5
+- Nori 6
+- Cucumber 7
+- Avocado 8
+- Tuna 10
+- Salmon 12
+- Shrimp 14
+- Uni 18
 
-Every hop is also worth **1 point**.
+## Delivery result
 
-## Restaurant result
+- More than 50% of the required items = restaurant opens.
+- 100% = full-menu result and maximum revenue.
+- 50% or less = restaurant closes and the route must be retried.
 
-At the finish:
+## Progression
 
-- **More than 50% collected:** restaurant opens.
-- **100% collected:** full menu / maximum revenue.
-- **Partial pass:** restaurant opens with reduced revenue.
-- **50% or less:** restaurant closes; retry the same level.
+- 20 levels.
+- Level 1 has 30 forward rows.
+- Each later level adds two rows.
+- Level 3 introduces night.
+- Later levels rotate morning, day, sunset, and night.
 
-Revenue is separate from score so future versions can use it for restaurant upgrades, cosmetics, or progression without changing the arcade score model.
+## Result / menu flow
 
-## Traffic design
+At the end of a run:
 
-Every road row owns a direction and speed. Cars/trucks wrap horizontally. Speed rises by level, and vehicle body lengths vary so players must judge gaps rather than memorize one cadence.
-
-For the MVP, retrying a level reuses a deterministic seed. That means a player can learn a difficult layout instead of receiving a completely unrelated failure state.
-
-## Input
-
-### Mobile
-
-- Tap: forward.
-- Swipe left/right: side hop.
-- Swipe down: backward.
-- Swipe up: forward.
-
-### Desktop
-
-- Arrow keys or WASD.
-- Space also moves forward.
-
-## Future extensions
-
-1. **Art pass:** original low-poly/voxel-inspired neighborhood, character and vehicle models.
-2. **Shop identity:** fishmonger, produce stand, seaweed shop, rice pantry, specialty counter.
-3. **Menu recipes:** convert raw ingredient counts into named dishes (salmon roll, tuna nigiri, uni special) so a missed ingredient visibly removes a dish from the opening menu.
-4. **Restaurant economy:** spend revenue on restaurant decor, staff, signs, kitchen speed, and new districts.
-5. **Districts:** 20 levels can be grouped into 4 districts of 5 levels, each with a new traffic/environment rule.
-6. **Traffic telegraphing:** train tracks, delivery bikes, buses, lights or horns.
-7. **Native wrapper:** Capacitor with iOS/Android lifecycle hooks routed into the same pause/resume ownership layer.
-8. **Audio:** one reusable level/ambient audio owner, following Slip and Jump's “one element, explicit visibility pause” approach.
+- primary action = replay the same level;
+- secondary action = Menu / Levels;
+- completing a level unlocks the next route in the level menu.
