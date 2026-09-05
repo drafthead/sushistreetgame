@@ -21,15 +21,18 @@
 
     const startY=scene.rowY(0);
     const travel=Math.max(0,startY-scene.player.y);
-    const targetLeft=travel*.58;
-    const targetRight=travel*.52;
+
+    // Keep the side scenery moving opposite the chef's forward progress, but
+    // make the total travel much more subtle than the previous pass. The two
+    // sides still differ slightly so the kitchen retains a little depth.
+    const targetLeft=travel*.34;
+    const targetRight=travel*.30;
     const state=scene._kitchenSmoothParallax||(scene._kitchenSmoothParallax={left:targetLeft,right:targetRight});
 
-    // Ease toward the new wall position instead of tying the background
-    // directly to the 128 ms hop tween. This makes each step feel like one
-    // continuous glide through the kitchen rather than a short visual jerk.
+    // Follow the target more slowly as well. This gives each hop a long, soft
+    // background glide instead of making the wall art keep pace with the chef.
     const dt=Math.min(Math.max(Number(delta)||16.667,1),50)/1000;
-    const follow=1-Math.exp(-dt*5.2);
+    const follow=1-Math.exp(-dt*2.6);
     state.left+=(targetLeft-state.left)*follow;
     state.right+=(targetRight-state.right)*follow;
 
@@ -46,8 +49,8 @@
   };
 
   // V7 still computes its instantaneous parallax position internally. V8 runs
-  // after that wrapper in the same Phaser frame and replaces it with the
-  // smoothed value before the browser paints, so there is no visible snap.
+  // after that wrapper in the same Phaser frame and replaces it with this
+  // slower, reduced-distance smoothed value before the browser paints.
   const previousUpdate=proto.update;
   proto.update=function(time,delta){
     const result=previousUpdate.call(this,time,delta);
