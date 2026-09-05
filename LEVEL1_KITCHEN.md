@@ -41,7 +41,7 @@ Level 1 vertical movement uses the chef's **actual world X** rather than snappin
 
 Board landing checks also use the chef's real X. The current pass accepts the full visible board footprint plus a small **6–10 px edge tolerance**, which compensates for the board moving slightly during the hop without snapping the player to a genuinely distant board. If no board is under that real landing position, the chef falls in the water.
 
-Water deaths now render a visible splash: expanding white/blue rings plus small droplets at the chef's actual fall position, alongside the existing splash sound/death flow.
+Water deaths render a visible splash: expanding white/blue rings plus small droplets at the chef's actual fall position, alongside the existing splash sound/death flow.
 
 ## Hot pots
 
@@ -53,7 +53,7 @@ On contact the chef is input-locked, tinted bright red for a short burn beat, th
 
 Flying-sushi hazard rows use `images/kitchen/flyingsushi/1.png`. The current art is approximately four times the original flying-sushi prototype size while preserving source aspect ratio. It still crosses the lane quickly, with spacing intended to feel like roughly one pass every two seconds.
 
-A flying-sushi hit is now a physical impact animation instead of an instant disappear. The chef turns red, is pulled onto the sushi's path, and both the sushi and chef travel together off the side of the screen before the failure result is shown.
+A flying-sushi hit is a physical impact animation instead of an instant disappear. The chef turns red, is pulled onto the sushi's path, and both the sushi and chef travel together off the side of the screen before the failure result is shown.
 
 Future `2.png`, `3.png`, and `4.png` assets can be added to the explicit asset list when they exist in the folder.
 
@@ -61,7 +61,9 @@ Future `2.png`, `3.png`, and `4.png` assets can be added to the explicit asset l
 
 The Level 1 side art is a fixed DOM overlay above the Phaser canvas and below the HUD. The visible rails extend roughly **172–192 px** inward from each physical screen edge.
 
-The side artwork is now treated as **infinitely repeating vertical scenery**. `leftside.png` and `rightside.png` repeat down the side rails rather than being stretched to a single viewport-height image. As the chef progresses upward through the level, the side art moves downward in the opposite direction at slightly different rates on the left and right. This creates the feeling that the player is moving forward through a long kitchen environment, and repeating the source image prevents the effect from running out of artwork.
+The side artwork is treated as **infinitely repeating vertical scenery**. `leftside.png` and `rightside.png` repeat down the side rails rather than being stretched to a single viewport-height image. As the chef progresses upward through the level, the side art moves downward in the opposite direction at slightly different rates on the left and right. Repeating the source image prevents the effect from running out of artwork.
+
+The latest pass smooths that movement with a frame-rate-independent easing filter. The side-wall target still follows the chef's actual forward travel, but the rendered background glides toward each new position over several frames instead of matching the short hop tween directly. This removes the visible jerk at the start/end of each jump and makes the walls feel like continuous scenery sliding past the player.
 
 `bottomside.png` remains a world-space start cap scaled uniformly to the viewport width. `topside.png` remains a world-space goal cap scaled the same way so it comes into view near the end of the route.
 
@@ -69,6 +71,6 @@ Level 1 uses a straight camera. Other levels keep the normal Sushi Street camera
 
 ## Implementation
 
-The original prototype remains in `sushi-kitchen-level1.js`. Successive Level 1-only refinements are layered in `sushi-kitchen-level1-v2.js` through `sushi-kitchen-level1-v7.js`, loaded in that order immediately before `sushi-boot.js`.
+The original prototype remains in `sushi-kitchen-level1.js`. Successive Level 1-only refinements are layered in `sushi-kitchen-level1-v2.js` through `sushi-kitchen-level1-v8.js`, loaded in that order immediately before `sushi-boot.js`.
 
-V5 owns ingredient sizing and uneven board spacing. V6 owns straight-X forward/back hopping and the first real-position board landing correction. V7 owns the latest forgiving board-edge tolerance, water splash feedback, individually collectible ingredients, flying-sushi carry-off death animation, and infinite downward-moving side parallax.
+V5 owns ingredient sizing and uneven board spacing. V6 owns straight-X forward/back hopping and the first real-position board landing correction. V7 owns the forgiving board-edge tolerance, water splash feedback, individually collectible ingredients, flying-sushi carry-off death animation, and infinite downward-moving side parallax. V8 owns the smoothed parallax interpolation so side scenery glides continuously rather than jerking with each hop.
