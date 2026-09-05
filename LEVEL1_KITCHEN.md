@@ -14,17 +14,20 @@ Level 1 uses the artwork already committed under `images/kitchen/`.
 - Flying sushi: `images/kitchen/flyingsushi/1.png`
 - Backgrounds: `leftside.png`, `rightside.png`, `bottomside.png`, `topside.png`
 
-The browser build uses explicit asset lists. When more board or flying-sushi PNGs are added, update the corresponding arrays in the Level 1 module.
+The browser build uses explicit asset lists. When more board or flying-sushi PNGs are added, update the corresponding arrays in the Level 1 modules.
 
 ## Row presentation
 
-The flat placeholder counter colors are replaced with repeated real tile artwork. Tile images are scaled uniformly by height and repeated edge-to-edge, so the artwork keeps its aspect ratio rather than being stretched.
+Kitchen mechanism rows use the committed tile art instead of flat placeholder blocks.
 
-- **Ingredient rows** use `tiles/2.png`; the transparent ingredient PNGs sit directly on top.
-- **Pot rows** use `tiles/1.png`; the pot PNGs sit directly on top.
-- **Plate rows** use `tiles/3.png`; the plate PNGs sit directly on top.
+- **Ingredient rows** use `tiles/2.png`.
+- **Pot rows** use `tiles/1.png`.
+- **Plate rows** use `tiles/3.png`.
+- **Flying-sushi rows** also use the kitchen tile treatment.
 
-The first ingredient touched on an ingredient row is collected. Every other ingredient on that row immediately turns gray and cannot be collected from that station.
+The current tile pass renders the texture at roughly twice the earlier scale and clips it to exactly one logical row. Phaser `TileSprite` repetition keeps adjacent tiles connected with no artificial gaps while still filling the full height of the row strip. Pickup and obstacle art is positioned from the repeated tile centers so objects read as sitting on the middle of the tile rather than floating between cells.
+
+Ingredient art is approximately twice the height used by the first kitchen prototype. The first ingredient touched on an ingredient row is collected; every other ingredient on that row immediately turns gray and cannot be collected from that station.
 
 Plate values remain tied to plate file number: plate 1 = 5 points, plate 2 = 10, plate 3 = 20, and plate 4 = 35. Level 1 still requires at least 3 plates plus at least half of the four ingredient choices before the restaurant can open.
 
@@ -36,30 +39,26 @@ Boards move laterally across the water like the earlier logs, but are shorter an
 
 ## Hot pots
 
-Pots are no longer passive blocked cells. The player can move onto a pot position, but touching one is fatal.
+Pots are lethal hazards. The player can move onto a pot position, but touching one is fatal.
 
 On contact the chef is input-locked, tinted bright red for a short burn beat, the camera gives a small shake, and the run ends with a **HOT POT!** failure message. The intended path is through the open gaps between pots.
 
 ## Flying sushi
 
-Flying-sushi hazard rows use `images/kitchen/flyingsushi/1.png`. The image moves quickly across the row, with spacing calculated so a hazard crosses a given point roughly every two seconds. Contact ends the run.
-
-The display target is now **4× the original prototype size**: roughly 120–168 px high depending on the active row geometry, with uniform scaling so the source aspect ratio is preserved. Collision width follows the enlarged visible artwork.
+Flying-sushi hazard rows use `images/kitchen/flyingsushi/1.png`. The current art is approximately four times the original flying-sushi prototype size while preserving source aspect ratio. It still crosses the lane quickly, with spacing intended to feel like roughly one pass every two seconds. Contact ends the run.
 
 Future `2.png`, `3.png`, and `4.png` assets can be added to the explicit asset list when they exist in the folder.
 
 ## Responsive kitchen frame
 
-The side background images are rendered as a fixed DOM overlay rather than Phaser world objects. This prevents camera scroll/overscan math from pushing them out of view.
+The Level 1 side art is a fixed DOM overlay rather than a Phaser world object. It sits above the game canvas and below the HUD.
 
-Each side image keeps its natural aspect ratio, scales by viewport height, and is parked mostly outside the viewport. Only about **20–40 pixels of the inside edge** remains visible on the left and right, with 24 px used on small phone widths. The overlay is below the HUD but above the game canvas.
+Each edge reserves a visible rail of roughly **28–40 px**. The left and right illustrations are rendered much wider than those rails while preserving aspect ratio, anchored at the bottom, and cropped slightly inside their source edge. This guarantees that an actual portion of each image remains inside the viewport instead of positioning the whole illustration just outside the screen. The tall art is allowed to end naturally as the viewport continues upward.
 
-`bottomside.png` is scaled uniformly so its width equals the viewport width, anchored to the bottom edge of the initial Level 1 view, and allowed to extend upward at its natural aspect ratio.
-
-`topside.png` is also scaled uniformly to the viewport width and anchored above the goal row so the sushi-chef environment comes into view naturally near the end of the route.
+`bottomside.png` remains a world-space start cap scaled uniformly to the viewport width. `topside.png` remains a world-space goal cap scaled the same way so it comes into view near the end of the route.
 
 Level 1 uses a straight camera. Other levels keep the normal Sushi Street camera presentation.
 
 ## Implementation
 
-The original prototype remains in `sushi-kitchen-level1.js`. Tile/hazard mechanics are layered in `sushi-kitchen-level1-v2.js`, and the current side-frame plus enlarged-flying-sushi corrections are layered in `sushi-kitchen-level1-v3.js`. Both load before `sushi-boot.js`, so the overrides affect Level 1 only.
+The original prototype remains in `sushi-kitchen-level1.js`. Successive Level 1-only refinements are layered in `sushi-kitchen-level1-v2.js`, `sushi-kitchen-level1-v3.js`, and `sushi-kitchen-level1-v4.js`, loaded in that order immediately before `sushi-boot.js`. The latest module owns the enlarged connected tile bands, larger ingredients, tile-centered kitchen objects, and explicit side-frame visibility.
