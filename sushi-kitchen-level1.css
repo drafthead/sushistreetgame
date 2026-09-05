@@ -1,9 +1,8 @@
 /* Level 1 kitchen prototype. Side art is a fixed viewport frame; gameplay remains responsive beneath it. */
 #kitchen-side-frame{
-  /* The previous 52–72 px rails were technically visible, but most of the
-     useful artwork was still outside the viewport. Bring another ~40 px of
-     each illustration into the screen while keeping the outside edge flush. */
-  --kitchen-side-visible:clamp(92px,7.4vw,112px);
+  /* Bring another 80 px of each side illustration inward from the previous
+     92–112 px rail while keeping the outside edge pinned to the viewport. */
+  --kitchen-side-visible:clamp(172px,13vw,192px);
   position:fixed;
   inset:0;
   z-index:260;
@@ -21,9 +20,7 @@ body.kitchen-level-one #kitchen-side-frame,
 }
 
 /* Use the real side PNGs. The elements remain pinned to the physical screen
-   edges, but are now about 40 px wider toward the center of the game. This is
-   equivalent to pulling the right illustration left and the left illustration
-   right without creating an empty gap at the outside edge. */
+   edges, but extend substantially farther toward the center of the game. */
 #kitchen-side-frame .kitchen-side{
   display:block!important;
   position:absolute;
@@ -55,7 +52,7 @@ body.kitchen-level-one .minimum-panel{padding-bottom:9px}
 body.kitchen-level-one .minimum-copy span{color:#f4d28e}
 body.kitchen-level-one .minimum-track{margin-top:7px}
 @media(max-width:520px){
-  #kitchen-side-frame{--kitchen-side-visible:92px}
+  #kitchen-side-frame{--kitchen-side-visible:172px}
   body.kitchen-level-one .minimum-copy{gap:5px}
   body.kitchen-level-one #minimum-text{font-size:10px}
 }
