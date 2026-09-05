@@ -11,15 +11,16 @@
         bestRevenue:p.bestRevenue||{},
         lastLevel:S.clamp(Number(p.lastLevel)||1,1,S.MAX_LEVEL),
         selectedChef,
+        soundEnabled:p.soundEnabled!==false,
       };
     }catch(_){
-      return {unlockedLevel:1,bestScores:{},bestRevenue:{},lastLevel:1,selectedChef:S.CHEFS[0].id};
+      return {unlockedLevel:1,bestScores:{},bestRevenue:{},lastLevel:1,selectedChef:S.CHEFS[0].id,soundEnabled:true};
     }
   };
   const save=x=>{try{localStorage.setItem(S.SAVE_KEY,JSON.stringify(x))}catch(_){}};
 
   class SushiScene extends Phaser.Scene {
-    constructor(){super('SushiStreet');this.save=loadSave();this.selectedLevel=1;this.runActive=false;this.runEnded=true;this.runStarted=false;this.inputLocked=true;this.isMoving=false;this.levelObjects=[];this.skyObjects=[];this.rows=[];this.vehicles=[];this.floaters=[];this.pickups=[];this.gesture={id:null,x:0,y:0};this._resizeTimer=0;}
+    constructor(){super('SushiStreet');this.save=loadSave();this.selectedLevel=1;this.runActive=false;this.runEnded=true;this.runStarted=false;this.inputLocked=true;this.isMoving=false;this.levelObjects=[];this.skyObjects=[];this.rows=[];this.vehicles=[];this.floaters=[];this.pickups=[];this.gesture={id:null,x:0,y:0};this._resizeTimer=0;this._audioCtx=null;}
 
     preload(){
       for(const chef of S.CHEFS){
@@ -31,7 +32,7 @@
     create(){
       window.__SUSHI_SCENE=this;window.SUSHI_RUNTIME_LIFECYCLE.bind(()=>window.__SUSHI_SCENE);
       this.keys=this.input.keyboard.addKeys('UP,DOWN,LEFT,RIGHT,W,A,S,D,SPACE');
-      this.installInput();this.installUi();
+      this.installInput();this.installUi();this.syncSoundButton();
       this.scale.on('resize', size=>this.handleViewportResize(size));
       const l=S.clamp(Math.min(this.save.lastLevel||1,this.save.unlockedLevel||1),1,S.MAX_LEVEL);
       this.startLevel(l,{boot:true});requestAnimationFrame(()=>requestAnimationFrame(()=>document.body.classList.add('loaded')));
@@ -56,6 +57,7 @@
 
     installUi(){
       if(!U.pause.dataset.bound){U.pause.dataset.bound='1';U.pause.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();window.SUSHI_RUNTIME_LIFECYCLE.pause('manual')},{passive:false})}
+      if(U.sound&&!U.sound.dataset.bound){U.sound.dataset.bound='1';U.sound.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();this.toggleSound()},{passive:false})}
       if(!U.primary.dataset.bound){U.primary.dataset.bound='1';U.primary.addEventListener('click',()=>{const a=U.primary.dataset.action||'retry';if(a==='resume')return window.SUSHI_RUNTIME_LIFECYCLE.resume('player');this.startLevel(this.selectedLevel)})}
       if(!U.secondary.dataset.bound){U.secondary.dataset.bound='1';U.secondary.addEventListener('click',()=>this.openLevelSelect(this.selectedLevel))}
       if(U.levelGrid&&!U.levelGrid.dataset.bound){U.levelGrid.dataset.bound='1';U.levelGrid.addEventListener('click',e=>{
@@ -64,6 +66,9 @@
         const b=e.target.closest('.level-btn');if(!b||b.disabled)return;this.selectedLevel=Number(b.dataset.level)||1;this.renderLevelGrid();U.primary.dataset.action='start';U.primary.textContent=`PLAY LEVEL ${this.selectedLevel}`
       })}
     }
+
+    toggleSound(){this.save.soundEnabled=!this.save.soundEnabled;save(this.save);this.syncSoundButton();if(this.save.soundEnabled)this.playSfx?.('pickup')}
+    syncSoundButton(){if(!U.sound)return;const on=this.save.soundEnabled!==false;U.sound.textContent=on?'♪':'×';U.sound.classList.toggle('muted',!on);U.sound.setAttribute('aria-pressed',String(on));U.sound.setAttribute('aria-label',on?'Turn sound off':'Turn sound on')}
 
     canAcceptInput(){return this.runActive&&!this.runEnded&&!this.inputLocked&&!U.modal.classList.contains('show')}
     cancelGesture(){this.gesture={id:null,x:0,y:0}}
@@ -101,7 +106,7 @@
     }
 
     startLevel(l,opt={}){
-      this.save=loadSave();l=S.clamp(Number(l)||1,1,this.save.unlockedLevel||1);try{if(this.scene.isPaused())this.scene.resume()}catch(_){}window.SUSHI_RUNTIME_LIFECYCLE.beforeLevelBuild(this);
+      this.save=loadSave();this.syncSoundButton();l=S.clamp(Number(l)||1,1,this.save.unlockedLevel||1);try{if(this.scene.isPaused())this.scene.resume()}catch(_){}window.SUSHI_RUNTIME_LIFECYCLE.beforeLevelBuild(this);
       this.selectedLevel=l;this.save.lastLevel=l;save(this.save);this.runActive=true;this.runEnded=false;this.runStarted=false;this.inputLocked=true;this.isMoving=false;this.activeMs=0;this.idleMs=0;this.score=0;this.totalHops=0;this.maxRow=0;this.goalRow=this.levelLength(l);this.theme=this.themeForLevel(l);this.rng=S.rngFor(l);this.menuList=this.buildMenu(l);this.menuRequired={};this.menuCollected={};this.menuList.forEach(i=>this.menuRequired[i.key]=(this.menuRequired[i.key]||0)+1);Object.keys(this.menuRequired).forEach(k=>this.menuCollected[k]=0);this.planIngredientRows();
 
       this.worldH=S.OVERSCAN_Y*2+S.SAFE_BOTTOM+(this.goalRow+5)*S.ROW_H;
@@ -127,7 +132,7 @@
     buildRows(){const shops=[];for(let i=0;i<=this.goalRow;i++){const r=this.describeRow(i);r.y=this.rowY(i);r.objects=[];r.vehicles=[];r.floaters=[];r.pickups=[];this.rows[i]=r;if(r.type==='shop')shops.push(r)}this.rows.forEach(r=>this.renderRow(r));this.placePickups(shops)}
 
     openLevelSelect(f=this.selectedLevel){
-      window.SUSHI_RUNTIME_LIFECYCLE.hideWarmup();try{if(this.scene.isPaused())this.scene.resume()}catch(_){}window.SUSHI_RUNTIME_LIFECYCLE.beforeLevelBuild(this);this.runActive=false;this.runEnded=true;this.runStarted=false;this.inputLocked=true;this.save=loadSave();this.selectedLevel=S.clamp(Math.min(f,this.save.unlockedLevel),1,S.MAX_LEVEL);U.hud.style.opacity='0';U.title.textContent='DELIVERY MENU';U.body.textContent='Choose a sushi master and an unlocked route. Play drops you directly onto the moving street.';U.stats.hidden=true;U.levelGrid.hidden=false;U.secondary.hidden=true;U.primary.dataset.action='start';U.primary.textContent=`PLAY LEVEL ${this.selectedLevel}`;U.hint.textContent='The selected master uses the back view during the run.';this.renderLevelGrid();U.modal.classList.add('show')
+      window.SUSHI_RUNTIME_LIFECYCLE.hideWarmup();try{if(this.scene.isPaused())this.scene.resume()}catch(_){}window.SUSHI_RUNTIME_LIFECYCLE.beforeLevelBuild(this);this.runActive=false;this.runEnded=true;this.runStarted=false;this.inputLocked=true;this.save=loadSave();this.syncSoundButton();this.selectedLevel=S.clamp(Math.min(f,this.save.unlockedLevel),1,S.MAX_LEVEL);U.hud.style.opacity='0';U.title.textContent='DELIVERY MENU';U.body.textContent='Choose a sushi master and an unlocked route. Play drops you directly onto the moving street.';U.stats.hidden=true;U.levelGrid.hidden=false;U.secondary.hidden=true;U.primary.dataset.action='start';U.primary.textContent=`PLAY LEVEL ${this.selectedLevel}`;U.hint.textContent='The selected master uses the back view during the run.';this.renderLevelGrid();U.modal.classList.add('show')
     }
 
     renderLevelGrid(){
