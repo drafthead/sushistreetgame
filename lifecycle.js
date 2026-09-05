@@ -13,6 +13,8 @@
   const primary = () => document.getElementById('primary-action');
   const secondary = () => document.getElementById('secondary-action');
   const levelGrid = () => document.getElementById('level-grid');
+  const stats = () => document.getElementById('modal-stats');
+  const hint = () => document.getElementById('modal-hint');
   const warmup = () => document.getElementById('warmup');
 
   function getScene() {
@@ -51,24 +53,27 @@
 
   function showPauseModal(reason = 'paused') {
     const scene = getScene();
-    if (!scene?.runActive) return;
+    if (!scene?.runActive || scene.runEnded) return;
     pauseReason = reason;
     const layer = modal();
     if (!layer) return;
-    const title = reason === 'background' ? 'Welcome Back' : 'Paused';
-    const body = reason === 'background'
+
+    modalTitle().textContent = reason === 'background' ? 'WELCOME BACK' : 'PAUSED';
+    modalBody().textContent = reason === 'background'
       ? 'The street was frozen while the app was away. Resume when you are ready.'
-      : 'Traffic and the active-time clock are frozen.';
-    modalTitle().textContent = title;
-    modalBody().textContent = body;
+      : 'Traffic, river platforms, and the active timer are frozen.';
     if (levelGrid()) levelGrid().hidden = true;
-    const stats = document.getElementById('modal-stats');
-    if (stats) stats.hidden = true;
-    primary().textContent = 'RESUME';
-    primary().dataset.action = 'resume';
-    secondary().hidden = false;
-    secondary().textContent = 'LEVEL SELECT';
-    secondary().dataset.action = 'level-select';
+    if (stats()) stats().hidden = true;
+    if (primary()) {
+      primary().dataset.action = 'resume';
+      primary().textContent = 'RESUME';
+    }
+    if (secondary()) {
+      secondary().hidden = false;
+      secondary().textContent = 'MENU / LEVELS';
+      secondary().dataset.action = 'level-select';
+    }
+    if (hint()) hint().textContent = 'Resume wakes Phaser behind a short warm-up overlay before controls return.';
     layer.classList.add('show');
   }
 
@@ -87,15 +92,11 @@
     const scene = getScene();
     if (!scene?.runActive || scene.runEnded || document.hidden) return;
     autoPausedForVisibility = false;
-    const layer = modal();
-    layer?.classList.remove('show');
+    modal()?.classList.remove('show');
     const warm = warmup();
     if (warm) warm.hidden = false;
     resetTransientInput(scene);
 
-    // Match Slip and Jump's warm-resume approach: wake/resume immediately behind
-    // a short blocking overlay so Phaser receives several clean frames before
-    // player input is accepted again.
     try { scene.game?.loop?.wake?.(); } catch (_) {}
     try { if (isScenePaused(scene)) scene.scene.resume(); } catch (_) {}
     try { scene.onWarmResumeStart?.(reason); } catch (_) {}
