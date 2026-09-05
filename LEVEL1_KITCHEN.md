@@ -1,48 +1,61 @@
 # Level 1 Kitchen Prototype
 
-Level 1 is now an isolated kitchen-style test route. Levels 2–20 keep the existing Sushi Street rules while this prototype is tuned.
+Level 1 is an isolated kitchen-style test route. Levels 2–20 keep the existing Sushi Street rules while this prototype is tuned.
 
-## Asset-driven rule
+## Current kitchen assets
 
-Level 1 should use the artwork already committed under `images/kitchen/` for the mechanics in this pass. Do not invent rolling sushi/cucumber hazards, wind streaks, wooden rollers, or other replacement obstacle art when an equivalent kitchen mechanic is not represented by the committed assets.
+Level 1 uses the artwork already committed under `images/kitchen/`.
 
-Current verified asset sets used by the prototype:
+- Boards: `images/kitchen/boards/1.png`
+- Ingredients: `images/kitchen/ingredients/1.png` through `6.png`
+- Pots: `images/kitchen/pots/1.png` through `3.png`
+- Plates: `images/kitchen/plates/1.png` through `4.png`
+- Tiles: `images/kitchen/tiles/1.png`, `2.png`, `3.png`
+- Flying sushi: `images/kitchen/flyingsushi/1.png`
+- Backgrounds: `leftside.png`, `rightside.png`, `bottomside.png`, `topside.png`
 
-- `images/kitchen/boards/1.png`
-- `images/kitchen/ingredients/1.png` through `6.png`
-- `images/kitchen/pots/1.png` through `3.png`
-- `images/kitchen/plates/1.png` through `4.png`
-- `images/kitchen/knives/1.png`, `2.png`, and `6.png`
-- `images/kitchen/backgrounds/leftside.png`, `rightside.png`, `bottomside.png`, and `topside.png`
+The browser build uses explicit asset lists. When more board or flying-sushi PNGs are added, update the corresponding arrays in the Level 1 module.
 
-The board list is intentionally explicit because a static browser build cannot enumerate a GitHub directory at runtime. When more board PNGs are added, update the `BOARD_FILES` list in `sushi-kitchen-level1.js`.
+## Row presentation
 
-## Level 1 route
+The flat placeholder counter colors are replaced with repeated real tile artwork. Tile images are scaled uniformly by height and repeated edge-to-edge, so the artwork keeps its aspect ratio rather than being stretched.
 
-The route is 26 forward rows and uses a straight camera for the kitchen reference look. It alternates the following mechanisms:
+- **Ingredient rows** use `tiles/2.png`; the transparent ingredient PNGs sit directly on top.
+- **Pot rows** use `tiles/1.png`; the pot PNGs sit directly on top.
+- **Plate rows** use `tiles/3.png`; the plate PNGs sit directly on top.
 
-- **Plate conveyors:** plate PNGs sit on conveyor rows. Touching a plate collects it once. Plate file number controls value: plate 1 is worth 5 points, plate 2 is 10, plate 3 is 20, and plate 4 is 35.
-- **Water channels:** every water row contains moving board PNGs. The board is the only valid landing support; bare blue water always causes a splash failure. Boards travel across the channel and wrap back after leaving the opposite side.
-- **Ingredient choice counters:** all six ingredient PNGs are shown. The first ingredient the chef touches on that counter is collected; the other choices immediately become gray and cannot be collected on that counter.
-- **Pot rows:** pot PNGs occupy blocked grid cells. The chef must move through the open gaps between pots.
-- **Prep rows:** the committed knife PNGs are used as visual prep-counter dressing in this first pass; they are not a separate invented projectile mechanic.
+The first ingredient touched on an ingredient row is collected. Every other ingredient on that row immediately turns gray and cannot be collected from that station.
 
-There are deliberately no generated sushi-roll/cucumber traffic hazards in this Level 1 prototype.
+Plate values remain tied to plate file number: plate 1 = 5 points, plate 2 = 10, plate 3 = 20, and plate 4 = 35. Level 1 still requires at least 3 plates plus at least half of the four ingredient choices before the restaurant can open.
 
-## Opening requirement
+## Water boards
 
-Level 1 contains four ingredient-choice counters. The restaurant requirement remains at least half of those choices, so the chef needs at least **2 ingredients**, plus at least **3 plates**, before reaching the top chef/finish area.
+Water rows use the committed kitchen board image as the only valid support. Bare water is never walkable.
 
-The Level 1 HUD changes to a compact kitchen status readout showing both ingredient and plate progress. Plate points still add directly to the normal score/high-score system.
+Boards move laterally across the water like the earlier logs, but are shorter and separated by visible gaps. A small repeating vertical/rotation tween gives each board a light floating motion while it travels.
 
-## Responsive environment frame
+## Hot pots
 
-The left and right kitchen background images stay fixed to the viewport edges at roughly 38–52 CSS/game pixels wide. Gameplay columns are inset from those strips so the chef does not run underneath the side art.
+Pots are no longer passive blocked cells. The player can move onto a pot position, but touching one is fatal.
 
-`bottomside.png` is anchored to the world around the Level 1 start area. `topside.png` is anchored around the finish/chef area. Both move with the world rather than remaining permanently on screen.
+On contact the chef is input-locked, tinted bright red for a short burn beat, the camera gives a small shake, and the run ends with a **HOT POT!** failure message. The intended path is through the open gaps between pots.
 
-Level 1 disables the normal 5.5° camera rotation so the kitchen lanes read more like the supplied reference. Other levels retain the existing rotated street presentation.
+## Flying sushi
+
+Flying-sushi hazard rows use `images/kitchen/flyingsushi/1.png`. The image moves quickly across the row. Spacing is calculated from lane width and speed so a hazard crosses a given point roughly every two seconds. Contact ends the run.
+
+Future `2.png`, `3.png`, and `4.png` assets can be added to the explicit asset list when they exist in the folder.
+
+## Responsive kitchen frame
+
+The side background images are no longer stretched into tall narrow strips. Each side image keeps its original aspect ratio and is scaled uniformly by viewport height, then positioned mostly outside the canvas so only about **20–40 pixels per side** remain visible.
+
+`bottomside.png` is scaled uniformly so its width equals the viewport width, anchored to the bottom edge of the initial Level 1 view, and allowed to extend upward at its natural aspect ratio.
+
+`topside.png` is also scaled uniformly to the viewport width and anchored above the goal row so the sushi-chef environment comes into view naturally near the end of the route.
+
+Level 1 uses a straight camera. Other levels keep the normal Sushi Street camera presentation.
 
 ## Implementation
 
-The prototype is implemented in `sushi-kitchen-level1.js` and loaded after the general tuning/flow modules so its overrides apply only to Level 1. `sushi-kitchen-level1.css` contains Level 1 HUD/frame presentation tweaks. The module intentionally falls back to the original implementation for every level other than Level 1.
+The original prototype remains in `sushi-kitchen-level1.js`. The current visual/mechanic polish is layered in `sushi-kitchen-level1-v2.js`, loaded immediately afterward and before `sushi-boot.js`, so these overrides affect Level 1 only.
