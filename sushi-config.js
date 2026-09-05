@@ -1,26 +1,4 @@
 (() => {
-  const W = Math.max(1, Math.round(window.innerWidth || document.documentElement.clientWidth || 390));
-  const H = Math.max(1, Math.round(window.innerHeight || document.documentElement.clientHeight || 844));
-
-  // The road fills the entire launch viewport. Extra world-space overscan sits outside
-  // the viewport so rotating the Phaser camera never reveals a hard left/right edge.
-  const CAMERA_DEG = 5.5;
-  const CAMERA_ROTATION = Phaser.Math.DegToRad(CAMERA_DEG);
-  const OVERSCAN_X = Math.ceil(Math.abs(Math.sin(CAMERA_ROTATION)) * H + Math.max(96, W * 0.055));
-  const OVERSCAN_Y = Math.ceil(Math.abs(Math.sin(CAMERA_ROTATION)) * W * 0.58 + 96);
-  const WORLD_W = W + OVERSCAN_X * 2;
-  const PLAY_X = OVERSCAN_X;
-  const PLAY_W = W;
-  const TRACK_X = 0;
-  const TRACK_W = WORLD_W;
-
-  const SIDE_MARGIN = Phaser.Math.Clamp(W * 0.025, 10, 28);
-  let cols = Phaser.Math.Clamp(Math.round((W - SIDE_MARGIN * 2) / 72), 9, 23);
-  if (cols % 2 === 0) cols += cols < 23 ? 1 : -1;
-  const COLS = cols;
-  const CELL_W = (PLAY_W - SIDE_MARGIN * 2) / COLS;
-  const ROW_H = Phaser.Math.Clamp(Math.round(H * 0.082), 52, 78);
-
   const PALETTE = {
     road: 0x484e5d, roadShadow: 0x272b37, shadow: 0x282229,
     water: 0x72d8ff, waterMid: 0x57bffd, waterDeep: 0x4886c1,
@@ -45,23 +23,56 @@
   };
 
   const ui = Object.fromEntries(Object.entries({
-    hud:'hud',level:'hud-level',jumps:'hud-jumps',score:'hud-score',time:'hud-time',progress:'hud-progress',
-    minimumText:'minimum-text',minimumFill:'minimum-fill',menuItems:'menu-items',modal:'modal',title:'modal-title',body:'modal-body',
-    levelGrid:'level-grid',stats:'modal-stats',primary:'primary-action',secondary:'secondary-action',hint:'modal-hint',pause:'pause-button',
+    hud:'hud',score:'hud-score',progress:'hud-progress',minimumText:'minimum-text',minimumFill:'minimum-fill',
+    menuItems:'menu-items',modal:'modal',title:'modal-title',body:'modal-body',levelGrid:'level-grid',stats:'modal-stats',
+    primary:'primary-action',secondary:'secondary-action',hint:'modal-hint',pause:'pause-button',
   }).map(([k,id]) => [k,document.getElementById(id)]));
   ui.minimumPanel = document.querySelector('.minimum-panel');
 
   const clamp = Phaser.Math.Clamp;
-  const lighten = (c,a) => Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(c),Phaser.Display.Color.ValueToColor(0xffffff),100,clamp(a,0,100)).color;
-  const darken = (c,a) => Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(c),Phaser.Display.Color.ValueToColor(0x000000),100,clamp(a,0,100)).color;
+  const lighten = (c,a) => Phaser.Display.Color.Interpolate.ColorWithColor(
+    Phaser.Display.Color.ValueToColor(c), Phaser.Display.Color.ValueToColor(0xffffff), 100, clamp(a,0,100)
+  ).color;
+  const darken = (c,a) => Phaser.Display.Color.Interpolate.ColorWithColor(
+    Phaser.Display.Color.ValueToColor(c), Phaser.Display.Color.ValueToColor(0x000000), 100, clamp(a,0,100)
+  ).color;
   const rngFor = level => { let seed=(0x9e3779b9^(level*0x85ebca6b))>>>0; return()=>{seed+=0x6D2B79F5;let t=seed;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;}; };
   const formatTime = ms => { const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
 
-  window.SS = {
-    W,H,WORLD_W,PLAY_X,PLAY_W,TRACK_W,TRACK_X,OVERSCAN_X,OVERSCAN_Y,CAMERA_ROTATION,CAMERA_DEG,
-    COLS,SIDE_MARGIN,CELL_W,ROW_H,PALETTE,ITEMS,THEMES,ui,clamp,lighten,darken,rngFor,formatTime,
-    MAX_LEVEL:20,MAX_BACKTRACK:4,START_COL:Math.floor(COLS/2),SAVE_KEY:'sushi-street-save-v1',IDLE_FISH_MS:6200,
-    CAMERA_CREEP:clamp(H*0.021,14,20),CAMERA_FOLLOW_Y:0.68,CAMERA_DANGER_Y:0.91,
-    SAFE_BOTTOM:clamp(H*0.12,68,108),VOXEL_DEPTH:clamp(CELL_W*0.12,4,9),
+  const S = {
+    PALETTE, ITEMS, THEMES, ui, clamp, lighten, darken, rngFor, formatTime,
+    MAX_LEVEL:20, MAX_BACKTRACK:4, SAVE_KEY:'sushi-street-save-v1', IDLE_FISH_MS:6200,
+    CAMERA_DEG:5.5, CAMERA_FOLLOW_Y:0.68, CAMERA_DANGER_Y:0.91, PICKUP_ROW_GAP:4,
   };
+
+  S.setViewport = (width, height) => {
+    const W = Math.max(1, Math.round(Number(width) || window.innerWidth || 390));
+    const H = Math.max(1, Math.round(Number(height) || window.innerHeight || 844));
+    const CAMERA_ROTATION = Phaser.Math.DegToRad(S.CAMERA_DEG);
+    const OVERSCAN_X = Math.ceil(Math.abs(Math.sin(CAMERA_ROTATION)) * H + Math.max(120, W * 0.06));
+    const OVERSCAN_Y = Math.ceil(Math.abs(Math.sin(CAMERA_ROTATION)) * W * 0.58 + 110);
+    const WORLD_W = W + OVERSCAN_X * 2;
+    const PLAY_X = OVERSCAN_X;
+    const PLAY_W = W;
+    const TRACK_X = 0;
+    const TRACK_W = WORLD_W;
+    const SIDE_MARGIN = clamp(W * 0.025, 10, 30);
+
+    const TARGET_CELL = 70;
+    let COLS = clamp(Math.round((W - SIDE_MARGIN * 2) / TARGET_CELL), 9, 27);
+    if (COLS % 2 === 0) COLS += COLS < 27 ? 1 : -1;
+    const CELL_W = (PLAY_W - SIDE_MARGIN * 2) / COLS;
+    const ROW_H = clamp(CELL_W * 0.88, 54, 70);
+
+    Object.assign(S, {
+      W,H,CAMERA_ROTATION,OVERSCAN_X,OVERSCAN_Y,WORLD_W,PLAY_X,PLAY_W,TRACK_X,TRACK_W,SIDE_MARGIN,COLS,CELL_W,ROW_H,
+      START_COL:Math.floor(COLS/2), SAFE_BOTTOM:clamp(ROW_H*1.35,72,104), VOXEL_DEPTH:clamp(CELL_W*.12,4,8),
+      CAMERA_CREEP:clamp(ROW_H*.24,13,18),
+    });
+    return S;
+  };
+
+  S.setViewport(window.innerWidth || document.documentElement.clientWidth || 390,
+                window.innerHeight || document.documentElement.clientHeight || 844);
+  window.SS = S;
 })();
