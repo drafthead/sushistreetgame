@@ -1,148 +1,86 @@
-# Phaser lifecycle and return-from-background practices
+# Phaser Lifecycle Notes for Sushi Street
 
-This document captures the runtime patterns in **Slip and Jump** that matter for Sushi Street, especially mobile browsers and eventual iOS/Android wrappers.
+This document records the Slip and Jump practices carried into Sushi Street.
 
-## What we are carrying over from Slip and Jump
+## Problem to avoid
 
-### 1. Pause the Phaser Scene when the app becomes hidden
+When a mobile web game goes to the background and comes back, Phaser projects often suffer from one or more of these issues:
 
-Slip and Jump's runtime treats `visibilitychange` / `pagehide` as ownership boundaries. If gameplay is active and the document becomes hidden, the Scene is paused.
+- traffic or timers appear to "catch up" all at once;
+- stale pointer gestures block the next tap;
+- old tweens or timers survive a level reset;
+- overlays and gameplay disagree about whether the run is paused.
 
-Sushi Street does the same in `lifecycle.js`.
+Slip and Jump solved this by **freezing the scene**, **separating pause ownership**, and **resuming through a warm-up path instead of an instant jump back into active play**.
 
-Why:
+## The Sushi Street version
 
-- Phaser's Scene clock stops while paused.
-- Scene timers do not race ahead while the user is away.
-- traffic movement does not simulate minutes of missing frames.
-- a return from background cannot create one giant animation/physics catch-up frame.
+`lifecycle.js` provides the same structure.
 
-### 2. Never blindly auto-resume
+### 1) Visibility pause freezes gameplay
 
-Slip and Jump distinguishes **who paused the game**. A visibility pause should not accidentally override a pause the player chose, a death state, or another modal state.
+On `visibilitychange` / `pagehide`:
 
-Sushi Street tracks `autoPausedForVisibility`. On return, it shows a **Welcome Back** pause card. Gameplay only resumes after the player presses Resume.
+- the active scene is paused;
+- transient input is cleared;
+- warmup overlays are hidden;
+- the game does **not** continue simulating while off-screen.
 
-This is important for native wrappers too: app foregrounding can happen while another UI owns the session.
+This means time away from the app is not gameplay time. Traffic can animate before the first hop, but the active-time and idle-fish counters begin only after the player's first valid move.
 
-### 3. Warm-resume behind a blocking overlay
+### 2) Explicit resume path
 
-Slip and Jump wakes/resumes Phaser behind a temporary “getting ready” overlay so the runtime receives clean frames before player input is accepted.
+When the app becomes visible again:
 
-Sushi Street uses a shorter 700 ms warmup because this MVP has lighter scenes, but the principle is identical:
+- Sushi Street does not immediately hand control back to the player;
+- a **Welcome Back** modal is shown;
+- pressing Resume wakes the game loop and resumes the scene;
+- a short **700ms warm-resume overlay** blocks input while Phaser settles.
 
-1. clear stale input;
-2. wake Phaser's loop;
-3. resume the Scene;
-4. block player input briefly;
-5. remove the warmup overlay;
-6. accept input again.
+This is intentionally similar to Slip and Jump's warm-resume behavior.
 
-### 4. Clamp frame delta in moving systems
+### 3) Per-level cleanup
 
-Slip and Jump's moving platforms use a capped delta instead of trusting a potentially huge frame delta after tab throttling or device stalls.
+Before a new level is built, `beforeLevelBuild(scene)` calls:
 
-Sushi Street traffic does the same:
+- `scene.time.removeAllEvents()`
+- `scene.tweens.killAll()`
+- `scene.cameras.main.resetFX()`
+- `scene.destroyLevelObjects()`
+- transient input reset helpers
 
-```js
-const dt = Math.min(delta, 40) / 1000;
-```
+That prevents stale callbacks or objects from surviving a retry or level transition.
 
-The active run timer also caps individual deltas. The timer therefore represents active gameplay time, not wall-clock time spent with the app backgrounded.
+### 4) Clamp frame delta in active simulation
 
-### 5. Retire old stage-owned work before rebuilding
+Inside `update()`:
 
-Slip and Jump clears Scene timer events, kills active tweens, resets camera effects, destroys stage-owned objects and clears transient pointer state before a new stage is built.
+- gameplay movement uses `Math.min(delta, 40)` for simulation;
+- the active timer uses `Math.min(delta, 50)`.
 
-Sushi Street centralizes the same responsibilities in `SUSHI_RUNTIME_LIFECYCLE.beforeLevelBuild(scene)`:
+So even if the browser returns an unusually large frame, the game does not leap forward in a single update.
 
-- clear buffered/swipe input;
-- remove Scene timer events;
-- kill all old level tweens;
-- reset camera effects;
-- destroy old road/shop/player/traffic objects;
-- then build the next attempt.
+### 5) Reset transient gestures
 
-This avoids callbacks from a previous level mutating a new level.
+The lifecycle helper calls scene methods like:
 
-### 6. Clear transient pointer state at boundaries
+- `cancelGesture()`
+- `clearBufferedMove()`
 
-A captured or half-finished touch gesture can make the first touch after a transition appear “missed.” Slip and Jump explicitly resets transient input at stage boundaries.
+This prevents a stale drag or queued move from being inherited after a pause or rebuild.
 
-Sushi Street clears its pointer id and buffered move:
+## Integration checklist for future features
 
-- on blur/background;
-- before a level rebuild;
-- when pausing;
-- at warm-resume start;
-- after a failure/finish.
+Any new Sushi Street mechanic should follow these rules:
 
-### 7. Use Scene time for gameplay, browser time only for UI/lifecycle ownership
+1. **Level-owned objects must be destroyable** through `destroyLevelObjects()`.
+2. **Timers** should be registered on `scene.time` so they are removable during rebuilds.
+3. **Input state** must be clearable; do not leave hidden gesture state in closures.
+4. **Resume safety first**: after foregrounding, do not accept gameplay input until the warm resume finishes.
+5. **Never rely on background catch-up** for movement, score, or progress.
 
-Gameplay-affecting time should live inside Phaser so it honors Scene pause semantics. Browser `setTimeout` is reserved for the warm-resume overlay itself, which is outside gameplay.
+## Why this matters for iPhone / Android wrapping later
 
-Do not build traffic spawning, ingredient expiry, level timers or scoring deadlines on wall-clock `Date.now()` unless the design explicitly wants offline progression.
+Because Sushi Street is being built as a web app first and may later be wrapped for native containers, visibility and lifecycle behavior needs to already be mobile-safe.
 
-## Sushi Street-specific runtime rules
-
-### Traffic
-
-Traffic positions advance only from Phaser `update(delta)`, with delta clamped. Nothing tries to “replay” missed traffic motion when returning from background.
-
-### Active-time clock
-
-The HUD clock is accumulated only from active Phaser frames. Leaving the app for five minutes does **not** add five minutes to the run.
-
-### Camera
-
-The camera follows the highest forward row reached, not every sideways/backward hop. It eases toward the player and accelerates slightly if the player gets too far ahead on screen. This creates the Crossy-style “camera catches up” feeling while preserving enough lateral time for shop collection.
-
-### Level rebuilds
-
-A retry always gets the same deterministic level layout for that level number. This makes failures learnable while cleanup ensures no traffic/tween from the previous attempt survives.
-
-## QA checklist
-
-### Background / foreground
-
-- Start moving through a road lane.
-- Background the browser/app for at least 30 seconds.
-- Return.
-- Verify the Welcome Back modal is visible and traffic is frozen.
-- Press Resume.
-- Verify the short sync overlay appears.
-- Verify traffic resumes at normal speed with no teleport or fast-forward.
-- Verify the active-time clock did not include background time.
-
-### Player-owned pause
-
-- Press Pause.
-- Background and foreground the app.
-- Verify the game stays paused.
-- Resume once; verify no double-pause or stuck Scene.
-
-### Retry / level transitions
-
-- Fail repeatedly on traffic.
-- Retry quickly several times.
-- Switch between unlocked levels repeatedly.
-- Verify no duplicate vehicles or old pickups remain.
-- Verify the first tap after every transition works.
-
-### Long session
-
-- Replay/switch levels 20+ times.
-- Verify traffic speed remains stable.
-- Verify no increasing delay on taps/swipes.
-- Verify no old level callback changes a new level's score or UI.
-
-## Slip and Jump source areas reviewed
-
-The patterns above were derived from these existing files in `drafthead/slipandjump`:
-
-- `AUDIO_AND_LIFECYCLE.md`
-- `runtime-lifecycle.js`
-- `session-polish.js`
-- `stage-resource-reset.js`
-- `game.js`
-- `index.html`
+These patterns keep the game stable in Safari / Chrome mobile tabs now, and they also map cleanly to wrapped app shells where pause/resume events are even more common.
