@@ -1,16 +1,35 @@
-/* Level 1 kitchen prototype. The side art is a fixed visual frame; gameplay remains responsive beneath it. */
-#kitchen-side-frame{position:fixed;inset:0;z-index:120;pointer-events:none;display:none}
-#kitchen-side-frame.show{display:block}
-#kitchen-side-frame .kitchen-side{position:absolute;top:0;height:100dvh;width:clamp(34px,4.4vw,46px);object-fit:cover;object-position:center center;filter:saturate(1.03) contrast(1.02)}
-#kitchen-side-frame .kitchen-side-left{left:0}
-#kitchen-side-frame .kitchen-side-right{right:0}
+/* Level 1 kitchen prototype. Side art is a fixed viewport frame; gameplay remains responsive beneath it. */
+#kitchen-side-frame{
+  --kitchen-side-visible:clamp(20px,2.5vw,40px);
+  position:fixed;
+  inset:0;
+  z-index:120;
+  pointer-events:none;
+  display:none;
+  overflow:hidden;
+}
+body.kitchen-level-one #kitchen-side-frame{display:block}
+#kitchen-side-frame .kitchen-side{
+  position:absolute;
+  top:0;
+  height:100dvh;
+  width:auto;
+  max-width:none;
+  object-fit:contain;
+  object-position:center center;
+  filter:saturate(1.03) contrast(1.02);
+}
+/* Preserve the source aspect ratio and park most of each tall strip offscreen.
+   Only 20–40 px of the inside edge remains visible on each side. */
+#kitchen-side-frame .kitchen-side-left{right:calc(100% - var(--kitchen-side-visible))}
+#kitchen-side-frame .kitchen-side-right{left:calc(100% - var(--kitchen-side-visible))}
 body.kitchen-level-one .minimum-marker,
 body.kitchen-level-one .minimum-labels{display:none}
 body.kitchen-level-one .minimum-panel{padding-bottom:9px}
 body.kitchen-level-one .minimum-copy span{color:#f4d28e}
 body.kitchen-level-one .minimum-track{margin-top:7px}
 @media(max-width:520px){
-  #kitchen-side-frame .kitchen-side{width:36px}
+  #kitchen-side-frame{--kitchen-side-visible:24px}
   body.kitchen-level-one .minimum-copy{gap:5px}
   body.kitchen-level-one #minimum-text{font-size:10px}
 }
