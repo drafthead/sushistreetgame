@@ -21,6 +21,14 @@
     { id:'chef-3', name:'Nigiri McFlurry', menuSrc:'images/sushimasters/3/front.png', runSrc:'images/sushimasters/3/back.png' },
   ];
 
+  const SHOP_TYPES = {
+    PANTRY:{en:'RICE & DRY GOODS',jp:'米・乾物店'},
+    SEAWEED:{en:'NORI MERCHANT',jp:'海苔屋'},
+    PRODUCE:{en:'PRODUCE MARKET',jp:'青果店'},
+    'FISH SHOP':{en:'FISHMONGER',jp:'鮮魚店'},
+    SPECIALTY:{en:'SPECIALTY MARKET',jp:'専門店'},
+  };
+
   const THEMES = {
     morning:{key:'morning',skyTop:0x9be0f7,skyBottom:0xeaf6ef,grass:PALETTE.grass,grassAlt:PALETTE.grassMid,grassDark:PALETTE.grassDark,road:PALETTE.road,roadShadow:PALETTE.roadShadow,water:PALETTE.water,waterDeep:PALETTE.waterDeep,laneStripe:0x9aa5b9,shop:0xe6c99d,shopDark:0xb9835d,lantern:0xffc66d,stars:false},
     day:{key:'day',skyTop:0x72d8ff,skyBottom:0xf2fbf3,grass:0xa7d861,grassAlt:0x94bd50,grassDark:0x566a29,road:0x484e5d,roadShadow:0x272b37,water:0x72d8ff,waterDeep:0x4886c1,laneStripe:0x9aa5b9,shop:0xedc98f,shopDark:0xb97d50,lantern:0xffbf68,stars:false},
@@ -31,7 +39,7 @@
   const ui = Object.fromEntries(Object.entries({
     hud:'hud',score:'hud-score',progress:'hud-progress',minimumText:'minimum-text',minimumFill:'minimum-fill',
     menuItems:'menu-items',modal:'modal',title:'modal-title',body:'modal-body',levelGrid:'level-grid',stats:'modal-stats',
-    primary:'primary-action',secondary:'secondary-action',hint:'modal-hint',pause:'pause-button',
+    primary:'primary-action',secondary:'secondary-action',hint:'modal-hint',pause:'pause-button',sound:'sound-button',bag:'ingredient-bag',
   }).map(([k,id]) => [k,document.getElementById(id)]));
   ui.minimumPanel = document.querySelector('.minimum-panel');
 
@@ -46,7 +54,7 @@
   const formatTime = ms => { const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
 
   const S = {
-    PALETTE, ITEMS, CHEFS, THEMES, ui, clamp, lighten, darken, rngFor, formatTime,
+    PALETTE, ITEMS, CHEFS, SHOP_TYPES, THEMES, ui, clamp, lighten, darken, rngFor, formatTime,
     MAX_LEVEL:20, MAX_BACKTRACK:4, SAVE_KEY:'sushi-street-save-v1', IDLE_FISH_MS:6200,
     CAMERA_DEG:5.5, CAMERA_FOLLOW_Y:0.68, CAMERA_DANGER_Y:0.91, PICKUP_ROW_GAP:4,
   };
@@ -74,6 +82,7 @@
       W,H,CAMERA_ROTATION,OVERSCAN_X,OVERSCAN_Y,WORLD_W,PLAY_X,PLAY_W,TRACK_X,TRACK_W,SIDE_MARGIN,COLS,CELL_W,ROW_H,
       START_COL:Math.floor(COLS/2), SAFE_BOTTOM:clamp(ROW_H*1.35,72,104), VOXEL_DEPTH:clamp(CELL_W*.12,4,8),
       CAMERA_CREEP:clamp(ROW_H*.24,13,18),
+      RIVER_MIN_SUPPORTS:W>=900?3:2,
     });
     return S;
   };
