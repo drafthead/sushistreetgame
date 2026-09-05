@@ -57,21 +57,22 @@ body.kitchen-level-one .minimum-panel{padding-bottom:9px}
 body.kitchen-level-one .minimum-copy span{color:#f4d28e}
 body.kitchen-level-one .minimum-track{margin-top:7px}
 
-/* Crossy-style onboarding prompt. It intentionally ignores pointer events so a
-   tap on the orange strip still goes straight through to the Phaser game. */
+/* Crossy-style onboarding prompt. This version is intentionally much more
+   obvious than the first transparent-edge strip so it cannot disappear into
+   the floor art. It still ignores pointer events, so tapping it hops normally. */
 #tap-hop-hint{
   position:fixed;
   left:50%;
-  bottom:max(22px,calc(env(safe-area-inset-bottom) + 14px));
+  bottom:max(18px,calc(env(safe-area-inset-bottom) + 12px));
   transform:translate(-50%,18px) scale(.96);
-  width:min(380px,86vw);
-  min-height:54px;
-  z-index:340;
+  width:min(360px,78vw);
+  min-height:60px;
+  z-index:1000;
   display:flex;
   align-items:center;
   justify-content:center;
-  gap:13px;
-  padding:8px 34px;
+  gap:14px;
+  padding:9px 28px;
   box-sizing:border-box;
   pointer-events:none;
   user-select:none;
@@ -79,54 +80,57 @@ body.kitchen-level-one .minimum-track{margin-top:7px}
   visibility:hidden;
   color:#fff8ed;
   font-family:Inter,system-ui,sans-serif;
-  font-size:clamp(16px,4vw,21px);
+  font-size:clamp(17px,4vw,21px);
   font-weight:950;
   letter-spacing:.01em;
-  text-shadow:0 2px 0 rgba(91,31,10,.42);
+  text-transform:none;
+  text-shadow:0 2px 0 rgba(91,31,10,.45);
+  border:1px solid rgba(255,190,118,.36);
+  border-radius:8px;
+  box-shadow:0 8px 18px rgba(78,25,10,.24),inset 0 1px 0 rgba(255,222,170,.30);
   background:
-    linear-gradient(90deg,
-      rgba(181,61,20,0) 0%,
-      rgba(211,85,28,.90) 15%,
-      rgba(188,59,20,.97) 50%,
-      rgba(211,85,28,.90) 85%,
-      rgba(181,61,20,0) 100%);
-  transition:opacity 220ms ease,transform 260ms ease,visibility 220ms;
+    linear-gradient(180deg,
+      rgba(218,85,32,.98) 0%,
+      rgba(190,57,24,.98) 52%,
+      rgba(151,40,22,.98) 100%);
+  transition:opacity 180ms ease,transform 220ms ease,visibility 180ms;
 }
 #tap-hop-hint::before,
 #tap-hop-hint::after{
   content:"";
   position:absolute;
-  left:9%;
-  right:9%;
+  left:7%;
+  right:7%;
   height:1px;
-  background:linear-gradient(90deg,transparent,rgba(255,213,160,.62),transparent);
+  background:linear-gradient(90deg,transparent,rgba(255,218,164,.62),transparent);
 }
-#tap-hop-hint::before{top:2px}
-#tap-hop-hint::after{bottom:2px;opacity:.46}
+#tap-hop-hint::before{top:3px}
+#tap-hop-hint::after{bottom:3px;opacity:.38}
 #tap-hop-hint.show{
-  opacity:1;
-  visibility:visible;
+  display:flex!important;
+  opacity:1!important;
+  visibility:visible!important;
   transform:translate(-50%,0) scale(1);
 }
 #tap-hop-hint img{
-  width:32px;
-  height:32px;
+  width:34px;
+  height:34px;
   display:block;
   flex:0 0 auto;
-  filter:drop-shadow(0 2px 0 rgba(95,33,10,.38));
-  animation:tapHandPulse 880ms ease-in-out infinite;
+  filter:drop-shadow(0 2px 0 rgba(95,33,10,.40));
+  animation:tapHandPulse 980ms ease-in-out infinite;
 }
 @keyframes tapHandPulse{
-  0%,100%{transform:translateY(2px) scale(.96)}
-  45%{transform:translateY(-3px) scale(1.08)}
+  0%,100%{transform:translateY(2px) scale(.97)}
+  45%{transform:translateY(-3px) scale(1.07)}
 }
 
 @media(max-width:520px){
   #kitchen-side-frame{--kitchen-side-visible:172px}
   body.kitchen-level-one .minimum-copy{gap:5px}
   body.kitchen-level-one #minimum-text{font-size:10px}
-  #tap-hop-hint{width:90vw;min-height:50px;padding:7px 26px;font-size:17px}
-  #tap-hop-hint img{width:29px;height:29px}
+  #tap-hop-hint{width:min(340px,86vw);min-height:56px;padding:8px 22px;font-size:17px}
+  #tap-hop-hint img{width:31px;height:31px}
 }
 @media(prefers-reduced-motion:reduce){
   #kitchen-side-frame::before,
