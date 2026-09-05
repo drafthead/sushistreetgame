@@ -25,7 +25,11 @@
       row.obstacles.push({kind,col,span,cells});
     };
 
-    const landRows=this.rows.filter((row,i)=>row?.type==='safe'&&(this.rows[i-1]?.type==='road'||this.rows[i+1]?.type==='road'));
+    // Keep both banks beside every river completely open so a lily pad or log
+    // always has an unobstructed exit onto land.
+    const touchesWater=i=>this.rows[i-1]?.type==='water'||this.rows[i+1]?.type==='water';
+    const landRows=this.rows.filter((row,i)=>row?.type==='safe'&&!touchesWater(i)&&(this.rows[i-1]?.type==='road'||this.rows[i+1]?.type==='road'));
+
     for(const row of landRows){
       const reserved=reservedFor(row);
       const conflicts=(col,span)=>{
@@ -36,14 +40,15 @@
         return false;
       };
 
-      const buildingTarget=S.W>=900?8:4;
+      // Half the previous density: two buildings on normal screens, four wide.
+      const buildingTarget=S.W>=900?4:2;
       let tries=0;
-      while(row.obstacles.filter(o=>o.kind==='building').length<buildingTarget&&tries++<180){
+      while(row.obstacles.filter(o=>o.kind==='building').length<buildingTarget&&tries++<120){
         const existing=row.obstacles.filter(o=>o.kind==='building').length;
         const span=rng()<.72?1:2;
-        let col;
-        if(existing%2===0)col=Math.floor(rng()*Math.max(1,Math.floor(S.COLS*.33)));
-        else col=Math.max(0,S.COLS-span-Math.floor(rng()*Math.max(1,Math.floor(S.COLS*.33))));
+        let col=existing%2===0
+          ?Math.floor(rng()*Math.max(1,Math.floor(S.COLS*.33)))
+          :Math.max(0,S.COLS-span-Math.floor(rng()*Math.max(1,Math.floor(S.COLS*.33))));
         if(conflicts(col,span)){
           const choices=[];
           for(let c=0;c<=S.COLS-span;c++)if(!conflicts(c,span))choices.push(c);
@@ -62,8 +67,9 @@
       }
     }
 
-    for(const row of this.rows){
-      if(row?.type!=='safe'||landRows.includes(row)||row.index<2||row.index>this.goalRow-2)continue;
+    for(let i=0;i<this.rows.length;i++){
+      const row=this.rows[i];
+      if(row?.type!=='safe'||landRows.includes(row)||touchesWater(i)||row.index<2||row.index>this.goalRow-2)continue;
       const reserved=reservedFor(row);
       let tries=0;
       while(row.obstacles.filter(o=>o.kind==='tree').length<(S.W>=900?5:3)&&tries++<80){
