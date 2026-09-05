@@ -39,7 +39,7 @@
   const rngFor = level => { let seed=(0x9e3779b9^(level*0x85ebca6b))>>>0; return()=>{seed+=0x6D2B79F5;let t=seed;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;}; };
   const formatTime = ms => { const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
   window.SS = { W,H,COLS,TRACK_W,TRACK_X,SIDE_MARGIN,CELL_W,ROW_H,PALETTE,ITEMS,THEMES,ui,clamp,lighten,darken,rngFor,formatTime,
-    MAX_LEVEL:20,MAX_BACKTRACK:4,START_COL:Math.floor(COLS/2),SAVE_KEY:'sushi-street-save-v4',IDLE_FISH_MS:6200,
+    MAX_LEVEL:20,MAX_BACKTRACK:4,START_COL:Math.floor(COLS/2),SAVE_KEY:'sushi-street-save-v1',IDLE_FISH_MS:6200,
     CAMERA_CREEP:clamp(H*0.021,14,20),CAMERA_FOLLOW_Y:0.68,CAMERA_DANGER_Y:0.91,SAFE_BOTTOM:clamp(H*0.12,68,108),VOXEL_DEPTH:clamp(CELL_W*0.12,4,8),
   };
 })();
