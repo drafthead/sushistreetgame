@@ -35,7 +35,11 @@ Plate values remain tied to plate file number: plate 1 = 5 points, plate 2 = 10,
 
 Water rows use the committed kitchen board image as the only valid support. Bare water is never walkable.
 
-Boards all keep one lane velocity, so they cannot catch one another and merge. Their initial positions now use deliberately uneven circular spacing with larger minimum gaps, which creates visibly different distances between successive boards while preserving those gaps for the whole run. A small repeating vertical/rotation tween gives each board a light floating motion while it travels.
+Boards all keep one lane velocity, so they cannot catch one another and merge. Their initial positions use deliberately uneven circular spacing with larger minimum gaps, which creates visibly different distances between successive boards while preserving those gaps for the whole run. A small repeating vertical/rotation tween gives each board a light floating motion while it travels.
+
+Level 1 vertical movement now uses the chef's **actual world X** rather than snapping to the center of the nearest logical column. This matters after a moving board has carried the chef sideways: pressing forward/back must produce a perfectly straight hop and must never teleport the chef two or three columns sideways.
+
+A water landing is valid only when the chef's real landing X overlaps the central 80% of a visible kitchen board. The game does not search for or snap the chef onto a nearby board. If there is water directly under the landing point, the run fails; if a board is directly under that point, the chef lands on it and is then carried with the board.
 
 ## Hot pots
 
@@ -51,11 +55,11 @@ Future `2.png`, `3.png`, and `4.png` assets can be added to the explicit asset l
 
 ## Responsive kitchen frame
 
-The Level 1 side art is a fixed DOM overlay rather than a Phaser world object.
+The Level 1 side art is a fixed DOM overlay rather than a Phaser world object. The actual `leftside.png` and `rightside.png` images are shown above the Phaser canvas and below the HUD.
 
-The earlier side-frame version hid the real `<img>` elements and replaced them with 28–40 px pseudo-element background crops taken from the extreme outer edge of each very wide source image. That made the implementation fragile: if the sampled edge was transparent/empty, the frame existed and had a valid z-index but still appeared visually blank. The issue was therefore primarily the crop strategy, not the Phaser camera.
+The current rails extend roughly **172–192 px** inward from each physical screen edge. The images preserve their aspect ratio with `object-fit: cover` and deliberately sample the interior of the art instead of the mostly empty extreme edge.
 
-The current pass renders the actual `leftside.png` and `rightside.png` elements again. Each one occupies a guaranteed **52–72 px viewport rail**, is bottom-anchored, uses `object-fit: cover` so the source aspect ratio is preserved, and samples farther inside the illustration (`object-position`) instead of the potentially empty outer edge. The side frame sits explicitly above the Phaser canvas, while the HUD is promoted above the side frame so controls remain readable.
+The side art is no longer visually static. V6 gives both side images extra vertical bleed and moves them downward according to Level 1 progress. The left and right sides travel by slightly different amounts, creating a simple parallax effect so the player feels like they are moving through the kitchen environment rather than past fixed stickers. Reduced-motion users keep a static presentation.
 
 `bottomside.png` remains a world-space start cap scaled uniformly to the viewport width. `topside.png` remains a world-space goal cap scaled the same way so it comes into view near the end of the route.
 
@@ -63,4 +67,6 @@ Level 1 uses a straight camera. Other levels keep the normal Sushi Street camera
 
 ## Implementation
 
-The original prototype remains in `sushi-kitchen-level1.js`. Successive Level 1-only refinements are layered in `sushi-kitchen-level1-v2.js`, `sushi-kitchen-level1-v3.js`, `sushi-kitchen-level1-v4.js`, and `sushi-kitchen-level1-v5.js`, loaded in that order immediately before `sushi-boot.js`. V5 owns the current ingredient sizing, uneven board spacing, and explicit side-frame visibility enforcement.
+The original prototype remains in `sushi-kitchen-level1.js`. Successive Level 1-only refinements are layered in `sushi-kitchen-level1-v2.js` through `sushi-kitchen-level1-v6.js`, loaded in that order immediately before `sushi-boot.js`.
+
+V5 owns the current ingredient sizing and uneven board spacing. V6 owns the side-art parallax, straight-X forward/back hopping, strict real-position board landing checks, and logical-column synchronization while riding a moving board.
