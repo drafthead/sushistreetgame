@@ -6,6 +6,7 @@
     log: 0x8b433a, logDark: 0x663b3c, orange: 0xf06030,
     redOrange: 0xe84028, lime: 0xa1d15a, mint: 0x81d4c1,
     cabin: 0xeffae8, yellow: 0xf8f858, black: 0x12151c, cream: 0xfff7ec,
+    rail: 0x747d8f, railDark: 0x303642, signalRed: 0xff4438,
   };
 
   const ITEMS = [
@@ -56,7 +57,11 @@
   const S = {
     PALETTE, ITEMS, CHEFS, SHOP_TYPES, THEMES, ui, clamp, lighten, darken, rngFor, formatTime,
     MAX_LEVEL:20, MAX_BACKTRACK:4, SAVE_KEY:'sushi-street-save-v1', IDLE_FISH_MS:6200,
-    CAMERA_DEG:5.5, CAMERA_FOLLOW_Y:0.68, CAMERA_DANGER_Y:0.91, PICKUP_ROW_GAP:4,
+    CAMERA_DEG:5.5, CAMERA_FOLLOW_Y:0.68, CAMERA_DANGER_Y:0.91,
+    SHOP_SPAN_ROWS:3, SHOP_GAP_ROWS:3, PICKUP_ROW_GAP:6,
+    TRAIN_WARNING_MS:2500, TRAIN_INTERVAL_MS:30000, TRAIN_INTERVAL_JITTER_MS:4000, TRAIN_TRAVEL_MS:2000,
+    DEATH_OVERLAY_DELAY_MS:2500,
+    CITY_SOUND_SRC:'audio/background/citySound.m4a',
   };
 
   S.setViewport = (width, height) => {
@@ -71,7 +76,6 @@
     const TRACK_X = 0;
     const TRACK_W = WORLD_W;
     const SIDE_MARGIN = clamp(W * 0.025, 10, 30);
-
     const TARGET_CELL = 70;
     let COLS = clamp(Math.round((W - SIDE_MARGIN * 2) / TARGET_CELL), 9, 27);
     if (COLS % 2 === 0) COLS += COLS < 27 ? 1 : -1;
@@ -81,8 +85,7 @@
     Object.assign(S, {
       W,H,CAMERA_ROTATION,OVERSCAN_X,OVERSCAN_Y,WORLD_W,PLAY_X,PLAY_W,TRACK_X,TRACK_W,SIDE_MARGIN,COLS,CELL_W,ROW_H,
       START_COL:Math.floor(COLS/2), SAFE_BOTTOM:clamp(ROW_H*1.35,72,104), VOXEL_DEPTH:clamp(CELL_W*.12,4,8),
-      CAMERA_CREEP:clamp(ROW_H*.24,13,18),
-      RIVER_MIN_SUPPORTS:W>=900?3:2,
+      CAMERA_CREEP:clamp(ROW_H*.24,13,18), RIVER_MIN_SUPPORTS:W>=900?3:2,
     });
     return S;
   };
