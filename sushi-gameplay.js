@@ -7,33 +7,35 @@
   proto.requiredCount=function(){return Object.values(this.menuRequired).reduce((a,n)=>a+Number(n||0),0)};
   proto.minimumCount=function(){return Math.ceil(this.requiredCount()*.5)};
   proto.menuRatio=function(){const n=this.requiredCount();return n?this.collectedCount()/n:0};
-
-  proto.updateHud=function(){
-    const got=this.collectedCount(),total=this.requiredCount(),ratio=this.menuRatio(),pct=Math.round(ratio*100);
-    if(U.score)U.score.textContent=this.score||0;if(U.progress)U.progress.textContent=`${pct}%`;if(U.minimumText)U.minimumText.textContent=`${got}/${total} · ${pct}%`;if(U.minimumFill)U.minimumFill.style.width=`${Math.min(100,pct)}%`;U.minimumPanel?.classList.toggle('ready',ratio>=.5);
-  };
+  proto.updateHud=function(){const got=this.collectedCount(),total=this.requiredCount(),ratio=this.menuRatio(),pct=Math.round(ratio*100);if(U.score)U.score.textContent=this.score||0;if(U.progress)U.progress.textContent=`${pct}%`;if(U.minimumText)U.minimumText.textContent=`${got}/${total} · ${pct}%`;if(U.minimumFill)U.minimumFill.style.width=`${Math.min(100,pct)}%`;U.minimumPanel?.classList.toggle('ready',ratio>=.5)};
 
   proto.playSfx=function(kind='hop'){
-    if(this.save?.soundEnabled===false)return;
-    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+    if(this.save?.soundEnabled===false)return;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
     try{
-      if(!this._audioCtx)this._audioCtx=new AC();const ctx=this._audioCtx;if(ctx.state==='suspended')ctx.resume?.();
-      const now=ctx.currentTime,master=ctx.createGain();master.gain.setValueAtTime(.0001,now);master.gain.exponentialRampToValueAtTime(.08,now+.01);master.gain.exponentialRampToValueAtTime(.0001,now+.16);master.connect(ctx.destination);
-      const tone=(freq,start,duration,type='square')=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,now+start);gain.gain.setValueAtTime(.0001,now+start);gain.gain.exponentialRampToValueAtTime(.8,now+start+.008);gain.gain.exponentialRampToValueAtTime(.0001,now+start+duration);osc.connect(gain);gain.connect(master);osc.start(now+start);osc.stop(now+start+duration+.02)};
-      if(kind==='pickup'){tone(660,0,.08,'sine');tone(880,.07,.1,'sine')}else if(kind==='splash'){tone(180,0,.14,'sawtooth');tone(120,.04,.12,'sine')}else{tone(250,0,.06,'triangle');tone(330,.045,.065,'triangle')}
+      if(!this._audioCtx)this._audioCtx=new AC();const ctx=this._audioCtx;if(ctx.state==='suspended')ctx.resume?.();const now=ctx.currentTime,master=ctx.createGain();master.gain.setValueAtTime(.0001,now);master.gain.exponentialRampToValueAtTime(.075,now+.01);master.gain.exponentialRampToValueAtTime(.0001,now+.55);master.connect(ctx.destination);
+      const tone=(freq,start,duration,type='square',vol=.8)=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,now+start);gain.gain.setValueAtTime(.0001,now+start);gain.gain.exponentialRampToValueAtTime(vol,now+start+.008);gain.gain.exponentialRampToValueAtTime(.0001,now+start+duration);osc.connect(gain);gain.connect(master);osc.start(now+start);osc.stop(now+start+duration+.02)};
+      if(kind==='pickup'){tone(660,0,.08,'sine');tone(880,.07,.1,'sine')}
+      else if(kind==='splash'){tone(180,0,.14,'sawtooth');tone(120,.04,.12,'sine')}
+      else if(kind==='train'){tone(880,0,.12,'sine',.9);tone(880,.24,.12,'sine',.9);tone(660,.48,.12,'sine',.7)}
+      else if(kind==='hit'){tone(120,0,.2,'sawtooth');tone(75,.04,.25,'square')}
+      else if(kind==='bump'){tone(150,0,.08,'square',.55)}
+      else{tone(250,0,.06,'triangle');tone(330,.045,.065,'triangle')}
     }catch(_){}
   };
 
   proto.animatePickupToBag=function(p,item){
-    if(!U.bag||!p)return;
-    const cam=this.cameras.main,viewX=p.x-cam.scrollX,viewY=p.y-cam.scrollY,cx=S.W/2,cy=S.H/2,dx=viewX-cx,dy=viewY-cy,rot=cam.rotation||0,cos=Math.cos(rot),sin=Math.sin(rot);
-    const sx=cx+dx*cos-dy*sin,sy=cy+dx*sin+dy*cos,bag=U.bag.getBoundingClientRect(),tx=bag.left+bag.width/2,ty=bag.top+bag.height/2;
+    if(!U.bag||!p)return;const cam=this.cameras.main,viewX=p.x-cam.scrollX,viewY=p.y-cam.scrollY,cx=S.W/2,cy=S.H/2,dx=viewX-cx,dy=viewY-cy,rot=cam.rotation||0,cos=Math.cos(rot),sin=Math.sin(rot),sx=cx+dx*cos-dy*sin,sy=cy+dx*sin+dy*cos,bag=U.bag.getBoundingClientRect(),tx=bag.left+bag.width/2,ty=bag.top+bag.height/2;
     const el=document.createElement('div');el.className='flying-ingredient';el.style.left=`${sx}px`;el.style.top=`${sy}px`;el.style.background=`#${item.color.toString(16).padStart(6,'0')}`;el.textContent='◆';document.body.appendChild(el);
     if(el.animate){const anim=el.animate([{transform:'translate(-50%,-50%) scale(1)',opacity:1},{transform:`translate(${tx-sx-10}px,${ty-sy-28}px) scale(.85)`,offset:.55,opacity:1},{transform:`translate(${tx-sx}px,${ty-sy}px) scale(.25)`,opacity:.1}],{duration:520,easing:'cubic-bezier(.2,.8,.2,1)'});anim.onfinish=()=>{el.remove();U.bag.classList.remove('bag-pop');void U.bag.offsetWidth;U.bag.classList.add('bag-pop');setTimeout(()=>U.bag?.classList.remove('bag-pop'),260)}}else el.remove();
   };
 
-  proto.beginRunClock=function(){if(this.runStarted)return;this.runStarted=true;this.activeMs=0;this.idleMs=0};
-  proto.requestMove=function(dx,dy){if(!this.canAcceptInput())return;if(this.isMoving){this.bufferedMove={dx,dy};return}const col=S.clamp(this.playerCol+dx,0,S.COLS-1),row=S.clamp(this.playerRow+dy,0,this.goalRow);if(col===this.playerCol&&row===this.playerRow)return;if(dy<0&&row<this.maxRow-S.MAX_BACKTRACK)return;const lane=this.rows[row];if(!lane)return;this.beginRunClock();this.executeMove(row,col,lane)};
+  proto.beginRunClock=function(){if(this.runStarted)return;this.runStarted=true;this.activeMs=0;this.idleMs=0;this.startAmbientAudio?.()};
+  proto.requestMove=function(dx,dy){
+    if(!this.canAcceptInput())return;if(this.isMoving){this.bufferedMove={dx,dy};return}
+    const col=S.clamp(this.playerCol+dx,0,S.COLS-1),row=S.clamp(this.playerRow+dy,0,this.goalRow);if(col===this.playerCol&&row===this.playerRow)return;if(dy<0&&row<this.maxRow-S.MAX_BACKTRACK)return;
+    const lane=this.rows[row];if(!lane)return;if(this.isBlocked?.(row,col)){this.playSfx('bump');this.tweens.add({targets:this.playerArt,x:dx?dx*-5:0,y:dy?-3:-7,duration:55,yoyo:true,onComplete:()=>this.playerArt?.setPosition(0,-7)});return}
+    this.beginRunClock();this.executeMove(row,col,lane);
+  };
 
   proto.executeMove=function(row,col,lane){
     this.isMoving=true;this.idleMs=0;this.totalHops++;this.score++;this.playerSupport=null;if(row>this.maxRow)this.maxRow=row;this.playSfx('hop');
@@ -43,25 +45,66 @@
   };
 
   proto.findSupportAt=function(row,x){const r=this.rows[row];if(!r||r.type!=='water')return null;return r.floaters.find(f=>x>=f.x-f.__float.width*.5&&x<=f.x+f.__float.width*.5)||null};
-  proto.collectAt=function(row){this.pickups.forEach(p=>{const m=p.__pickup;if(!m||m.collected||m.row!==row||Math.abs(this.player.x-p.x)>m.zoneW*.5)return;m.collected=true;m.missed=false;p.__missedZone?.setVisible(false);p.__missedLabel?.setVisible(false);this.menuCollected[m.item.key]=(this.menuCollected[m.item.key]||0)+1;this.score+=m.item.points;this.playSfx('pickup');this.animatePickupToBag(p,m.item);this.flashPickup(p,m.item);this.tweens.add({targets:p,scaleX:1.06,scaleY:1.06,alpha:.18,duration:240,ease:'Quad.Out',onComplete:()=>p.setVisible(false)});this.updateHud()})};
-  proto.flashPickup=function(p,item){const t=this.track(this.add.text(p.x,p.y-52,`GOT ${item.label}  +${item.points}`,{fontFamily:'Inter,system-ui,sans-serif',fontSize:'13px',fontStyle:'900',color:'#17212a',backgroundColor:'#f8f858',padding:{x:8,y:4}}).setOrigin(.5).setDepth(130));this.tweens.add({targets:t,y:t.y-22,alpha:0,duration:520,ease:'Quad.Out',onComplete:()=>t.destroy()});for(let i=0;i<5;i++){const q=this.track(this.add.rectangle(p.x+Phaser.Math.Between(-12,12),p.y+Phaser.Math.Between(-8,8),5,5,i%2?P.yellow:item.color).setDepth(129));this.tweens.add({targets:q,x:q.x+Phaser.Math.Between(-28,28),y:q.y+Phaser.Math.Between(-30,-10),alpha:0,duration:320+i*30,onComplete:()=>q.destroy()})}};
-  proto.updateMissedPickups=function(){this.pickups.forEach(p=>{const m=p.__pickup;if(!m||m.collected||!p.active)return;const miss=this.playerRow>m.row;if(miss===m.missed)return;m.missed=miss;p.__missedZone?.setVisible(miss);p.__missedLabel?.setVisible(miss);if(miss)this.flashMissed(p,m.item)})};
-  proto.flashMissed=function(p,item){const t=this.track(this.add.text(p.x,p.y-54,`MISSED ${item.label}`,{fontFamily:'Inter,system-ui,sans-serif',fontSize:'16px',fontStyle:'900',color:'#fff',backgroundColor:'#e84028',padding:{x:9,y:5}}).setOrigin(.5).setDepth(135));this.tweens.add({targets:t,scaleX:1.08,scaleY:1.08,yoyo:true,duration:110,repeat:1,onComplete:()=>this.tweens.add({targets:t,alpha:0,y:t.y-16,duration:360,onComplete:()=>t.destroy()})})};
+  proto.collectAt=function(row){
+    this.pickups.forEach(p=>{const m=p.__pickup;if(!m||m.collected||row<m.rowStart||row>m.rowEnd||Math.abs(this.player.x-p.x)>m.zoneW*.5)return;m.collected=true;m.missed=false;p.__missedZone?.setVisible(false);p.__missedLabel?.setVisible(false);this.menuCollected[m.item.key]=(this.menuCollected[m.item.key]||0)+1;this.score+=m.item.points;this.playSfx('pickup');this.animatePickupToBag(p,m.item);this.flashPickup(p,m.item);this.tweens.add({targets:p,scaleX:1.04,scaleY:1.04,alpha:.18,duration:240,ease:'Quad.Out',onComplete:()=>p.setVisible(false)});this.updateHud()});
+  };
+  proto.flashPickup=function(p,item){const t=this.track(this.add.text(p.x,p.y-S.ROW_H*1.25,`GOT ${item.label}  +${item.points}`,{fontFamily:'Inter,system-ui,sans-serif',fontSize:'13px',fontStyle:'900',color:'#17212a',backgroundColor:'#f8f858',padding:{x:8,y:4}}).setOrigin(.5).setDepth(130));this.tweens.add({targets:t,y:t.y-22,alpha:0,duration:520,ease:'Quad.Out',onComplete:()=>t.destroy()});for(let i=0;i<5;i++){const q=this.track(this.add.rectangle(p.x+Phaser.Math.Between(-12,12),p.y+Phaser.Math.Between(-8,8),5,5,i%2?P.yellow:item.color).setDepth(129));this.tweens.add({targets:q,x:q.x+Phaser.Math.Between(-28,28),y:q.y+Phaser.Math.Between(-30,-10),alpha:0,duration:320+i*30,onComplete:()=>q.destroy()})}};
+  proto.updateMissedPickups=function(){this.pickups.forEach(p=>{const m=p.__pickup;if(!m||m.collected||!p.active)return;const miss=this.playerRow>m.rowEnd;if(miss===m.missed)return;m.missed=miss;p.__missedZone?.setVisible(miss);p.__missedLabel?.setVisible(miss);if(miss)this.flashMissed(p,m.item)})};
+  proto.flashMissed=function(p,item){const t=this.track(this.add.text(p.x,p.y-S.ROW_H*1.2,`MISSED ${item.label}`,{fontFamily:'Inter,system-ui,sans-serif',fontSize:'16px',fontStyle:'900',color:'#fff',backgroundColor:'#e84028',padding:{x:9,y:5}}).setOrigin(.5).setDepth(135));this.tweens.add({targets:t,scaleX:1.08,scaleY:1.08,yoyo:true,duration:110,repeat:1,onComplete:()=>this.tweens.add({targets:t,alpha:0,y:t.y-16,duration:360,onComplete:()=>t.destroy()})})};
 
-  proto.updateTraffic=function(dt){this.vehicles.forEach(v=>{if(!v.active)return;const m=v.__traffic;const next=v.x+m.vx*dt;v.x=m.cycleStart+mod(next-m.cycleStart,m.cycleLength)})};
+  proto.updateTraffic=function(dt){this.vehicles.forEach(v=>{if(!v.active)return;const m=v.__traffic,vx=m.vx*(m.kind==='moped'?1.18:1),next=v.x+vx*dt;v.x=m.cycleStart+mod(next-m.cycleStart,m.cycleLength)})};
   proto.updateFloaters=function(dt){this.floaters.forEach(f=>{if(!f.active)return;const m=f.__float;if(m.stationary||!m.vx)return;const next=f.x+m.vx*dt;f.x=m.cycleStart+mod(next-m.cycleStart,m.cycleLength)})};
   proto.updatePlayerSupport=function(){if(!this.playerSupport||this.isMoving||this.runEnded)return;this.player.x=this.playerSupport.x+this.playerSupportOffsetX};
+
+  proto.resetTrainSchedule=function(){
+    const jitter=Math.floor((this.rng?.()??.5)*S.TRAIN_INTERVAL_JITTER_MS*2)-S.TRAIN_INTERVAL_JITTER_MS;
+    this.trainSystem={phase:'idle',nextAt:S.TRAIN_INTERVAL_MS+jitter,row:null,dir:1,warningStarted:0};
+  };
+  proto.beginTrainWarning=function(){
+    if(!this.trainRows?.length||!this.trainSystem)return;const row=this.trainRows[Math.floor((this.rng?.()??.5)*this.trainRows.length)];this.trainSystem.phase='warning';this.trainSystem.row=row;this.trainSystem.dir=(this.rng?.()??.5)>.5?1:-1;this.trainSystem.warningStarted=this.activeMs;this.playSfx('train');this.setTrainWarning?.(row,true,true);
+  };
+  proto.launchTrain=function(){const s=this.trainSystem;if(!s?.row)return;s.phase='running';this.setTrainWarning?.(s.row,true,true);this.createTrain?.(s.row,s.dir)};
+  proto.finishTrainPass=function(){const s=this.trainSystem;if(!s)return;if(s.row)this.setTrainWarning?.(s.row,false);const jitter=Math.floor((this.rng?.()??.5)*S.TRAIN_INTERVAL_JITTER_MS*2)-S.TRAIN_INTERVAL_JITTER_MS;s.phase='idle';s.row=null;s.nextAt=this.activeMs+S.TRAIN_INTERVAL_MS+jitter};
+  proto.updateTrainSystem=function(dtMs){
+    const s=this.trainSystem;if(!this.runStarted||!s||!this.trainRows.length)return;
+    if(s.phase==='idle'&&this.activeMs>=s.nextAt-S.TRAIN_WARNING_MS)this.beginTrainWarning();
+    if(s.phase==='warning'){
+      const blink=Math.floor((this.activeMs-s.warningStarted)/220)%2===0;this.setTrainWarning?.(s.row,true,blink);
+      if(this.activeMs>=s.nextAt)this.launchTrain();
+    }
+    let anyTrain=false;
+    this.trains=this.trains.filter(t=>{
+      if(!t?.active)return false;anyTrain=true;const m=t.__train;m.elapsed+=dtMs;const p=Math.min(1,m.elapsed/m.duration),distance=m.travel*p;t.x=m.start+m.dir*distance;
+      if(this.player&&this.playerRow===m.row&&!this.isMoving&&Math.abs(t.x-this.player.x)<m.width*.5){this.failRun('TRAIN HIT','The express train caught the chef on the tracks. Wait for the warning lights, then cross fast.','train')}
+      if(p>=1){t.destroy();return false}return true;
+    });
+    if(s.phase==='running'&&!anyTrain&&this.trains.length===0)this.finishTrainPass();
+  };
+
   proto.updateCamera=function(dt){if(!this.player)return;const target=S.clamp(this.rowY(this.maxRow)-S.H*S.CAMERA_FOLLOW_Y,0,Math.max(0,this.worldH-S.H));this.cameraTargetY=Math.min(this.cameraTargetY,target);if(this.runStarted)this.cameraTargetY=Math.max(0,this.cameraTargetY-S.CAMERA_CREEP*dt);const cur=this.cameras.main.scrollY,d=this.cameraTargetY-cur;this.cameras.main.scrollY=cur+d*(Math.abs(d)>S.ROW_H*1.2?.12:.075);this.cameras.main.scrollX=S.OVERSCAN_X};
   proto.checkCameraPressure=function(){if(!this.runStarted||this.runEnded||!this.player)return;const sy=this.player.y-this.cameras.main.scrollY;if(sy>=S.H*S.CAMERA_DANGER_Y)this.failRun('CAUGHT FROM BEHIND','The street kept moving while you waited. Keep making forward progress before the giant sushi fish reaches you.','fish')};
   proto.handleKeyboard=function(){if(!this.canAcceptInput())return;const K=Phaser.Input.Keyboard;if(K.JustDown(this.keys.UP)||K.JustDown(this.keys.W)||K.JustDown(this.keys.SPACE))this.requestMove(0,1);else if(K.JustDown(this.keys.DOWN)||K.JustDown(this.keys.S))this.requestMove(0,-1);else if(K.JustDown(this.keys.LEFT)||K.JustDown(this.keys.A))this.requestMove(-1,0);else if(K.JustDown(this.keys.RIGHT)||K.JustDown(this.keys.D))this.requestMove(1,0)};
-  proto.checkTrafficCollision=function(){if(this.runEnded||!this.player||this.isMoving)return;const r=this.rows[this.playerRow];if(r?.type!=='road')return;for(const v of r.vehicles)if(Math.abs(v.x-this.player.x)<v.__traffic.width*.45)return this.failRun('TRAFFIC HIT','A delivery truck got there first. Each road row is one lane and one hop—read the gap, then move.','traffic')};
+  proto.checkTrafficCollision=function(){if(this.runEnded||!this.player||this.isMoving)return;const r=this.rows[this.playerRow];if(r?.type!=='road')return;for(const v of r.vehicles)if(Math.abs(v.x-this.player.x)<v.__traffic.width*.44)return this.failRun(v.__traffic.kind==='moped'?'MOPED HIT':'TRAFFIC HIT',v.__traffic.kind==='moped'?'A moped clipped the chef. Watch the smaller, faster riders.':'A vehicle got there first. Read the lane gap, then move.','traffic')};
   proto.checkWaterState=function(){if(this.runEnded||this.isMoving)return;const r=this.rows[this.playerRow];if(r?.type!=='water')return;const f=this.findSupportAt(this.playerRow,this.player.x);if(!f)return this.failRun('SPLASH DOWN','You slipped off the floating path. Stay on a lily pad, log, or fishing boat.','water');this.playerSupport=f;this.playerSupportOffsetX=this.player.x-f.x;if(this.player.x<S.PLAY_X-S.CELL_W*.35||this.player.x>S.PLAY_X+S.PLAY_W+S.CELL_W*.35)this.failRun('SWEPT AWAY','The current carried you out of the crossing. Jump off the moving support sooner.','water')};
   proto.checkIdleFish=function(){if(this.idleMs>=S.IDLE_FISH_MS&&!this.runEnded&&!this.isMoving)this.failRun('GIANT SUSHI FISH','You stayed still too long. The giant sushi fish surfaced and gulped down the chef.','fish')};
 
-  proto.update=function(_time,delta){if(!this.runActive||this.runEnded||!this.player)return;const dt=Math.min(delta,40)/1000,clamped=Math.min(delta,50);this.updateFloaters(dt);this.updateTraffic(dt);this.updatePlayerSupport();this.updateCamera(dt);this.handleKeyboard();this.checkTrafficCollision();this.checkWaterState();if(this.runStarted){this.activeMs+=clamped;if(!this.isMoving)this.idleMs+=clamped;this.checkIdleFish();this.checkCameraPressure()}this.updateHud()};
+  proto.update=function(_time,delta){
+    const dt=Math.min(delta,40)/1000,clamped=Math.min(delta,50);
+    if(!this.runActive||!this.player)return;
+    if(this.runEnded){this.updateTrainSystem(clamped);return}
+    this.updateFloaters(dt);this.updateTraffic(dt);this.updatePlayerSupport();this.updateCamera(dt);this.handleKeyboard();this.checkTrafficCollision();this.checkWaterState();
+    if(this.runStarted){this.activeMs+=clamped;if(!this.isMoving)this.idleMs+=clamped;this.updateTrainSystem(clamped);this.checkIdleFish();this.checkCameraPressure()}this.updateHud();
+  };
 
-  proto.failRun=function(title,body,cause='traffic'){if(this.runEnded)return;this.runEnded=true;this.inputLocked=true;this.clearBufferedMove();this.cancelGesture();this.tweens.killTweensOf(this.player);this.tweens.killTweensOf(this.playerArt);if(cause==='water'){this.playSfx('splash');this.tweens.add({targets:this.playerArt,y:14,alpha:0,angle:18,duration:240});const splash=this.track(this.add.circle(this.player.x,this.player.y+10,10,0xffffff,.68).setDepth(98));this.tweens.add({targets:splash,scaleX:3.3,scaleY:1.5,alpha:0,duration:260})}else if(cause==='fish'){const f=this.track(this.createFishSprite(this.player.x-130,this.player.y+6).setScale(.78));this.tweens.add({targets:f,x:this.player.x+22,duration:230,ease:'Quad.Out'});this.tweens.add({targets:this.playerArt,angle:-12,scaleX:.75,scaleY:.75,duration:220})}else this.tweens.add({targets:this.playerArt,angle:15,scaleX:.84,scaleY:.84,duration:150,yoyo:true});this.cameras.main.shake(210,.008);this.showResult(false,title,body,0)};
+  proto.failRun=function(title,body,cause='traffic'){
+    if(this.runEnded)return;this.runEnded=true;this.inputLocked=true;this.clearBufferedMove();this.cancelGesture();this.tweens.killTweensOf(this.player);this.tweens.killTweensOf(this.playerArt);this.playSfx(cause==='water'?'splash':'hit');
+    if(cause==='water'){this.tweens.add({targets:this.playerArt,y:18,alpha:0,angle:18,duration:420});const splash=this.track(this.add.circle(this.player.x,this.player.y+10,10,0xffffff,.68).setDepth(98));this.tweens.add({targets:splash,scaleX:3.3,scaleY:1.5,alpha:0,duration:420})}
+    else if(cause==='fish'){const f=this.track(this.createFishSprite(this.player.x-130,this.player.y+6).setScale(.78));this.tweens.add({targets:f,x:this.player.x+22,duration:350,ease:'Quad.Out'});this.tweens.add({targets:this.playerArt,angle:-12,scaleX:.75,scaleY:.75,duration:330})}
+    else if(cause==='train'){this.tweens.add({targets:this.playerArt,x:42,y:-34,angle:110,alpha:.35,duration:620,ease:'Quad.Out'});this.cameras.main.shake(480,.014)}
+    else{this.tweens.add({targets:this.playerArt,angle:18,x:12,scaleX:.82,scaleY:.82,duration:260,yoyo:true});this.cameras.main.shake(280,.01)}
+    this.time.delayedCall(S.DEATH_OVERLAY_DELAY_MS,()=>{if(this.runEnded)this.showResult(false,title,body,0)});
+  };
 
   proto.finishDelivery=function(){if(this.runEnded)return;this.runEnded=true;this.inputLocked=true;const ratio=this.menuRatio();if(this.collectedCount()<this.minimumCount())return this.showResult(false,'RESTAURANT CLOSED',`You delivered ${this.collectedCount()} of ${this.requiredCount()} ingredients. You need at least half to open today.`,0);const revenue=Math.round((120+this.selectedLevel*28+this.requiredCount()*12)*(.55+ratio*.45));this.score+=Math.round(25*ratio);this.save.bestScores[this.selectedLevel]=Math.max(Number(this.save.bestScores[this.selectedLevel])||0,this.score);this.save.bestRevenue[this.selectedLevel]=Math.max(Number(this.save.bestRevenue[this.selectedLevel])||0,revenue);if(this.selectedLevel<S.MAX_LEVEL)this.save.unlockedLevel=Math.max(this.save.unlockedLevel,this.selectedLevel+1);this.save.lastLevel=this.selectedLevel;window.SushiScene.saveProgress(this.save);this.showResult(true,ratio===1?'FULL MENU — OPEN!':'RESTAURANT OPEN',ratio===1?'Every ingredient made it in. Full menu, full earning power.':`You delivered ${Math.round(ratio*100)}% of the menu. Missing items lower today's revenue.`,revenue)};
-  proto.showResult=function(success,title,body,revenue){U.title.textContent=title;U.body.textContent=body;U.levelGrid.hidden=true;U.stats.hidden=false;U.stats.innerHTML=`<div class="modal-stat"><span>INGREDIENTS</span><b>${this.collectedCount()}/${this.requiredCount()}</b></div><div class="modal-stat"><span>SCORE</span><b>${this.score}</b></div><div class="modal-stat"><span>${success?'REVENUE':'ACTIVE TIME'}</span><b>${success?'$'+revenue:S.formatTime(this.activeMs)}</b></div>`;U.primary.dataset.action='retry';U.primary.textContent=success?'RUN THIS LEVEL AGAIN':'TRY AGAIN';U.secondary.hidden=false;U.secondary.textContent='MENU / LEVELS';U.hint.textContent=success?'The next route is unlocked in Menu / Levels.':'Retry starts immediately. The timer and camera pressure wait for your first hop.';U.modal.classList.add('show');this.updateHud()};
+  proto.showResult=function(success,title,body,revenue){U.title.textContent=title;U.body.textContent=body;U.levelGrid.hidden=true;U.stats.hidden=false;U.stats.innerHTML=`<div class="modal-stat"><span>INGREDIENTS</span><b>${this.collectedCount()}/${this.requiredCount()}</b></div><div class="modal-stat"><span>SCORE</span><b>${this.score}</b></div><div class="modal-stat"><span>${success?'REVENUE':'ACTIVE TIME'}</span><b>${success?'$'+revenue:S.formatTime(this.activeMs)}</b></div>`;U.primary.dataset.action='retry';U.primary.textContent=success?'RUN THIS LEVEL AGAIN':'TRY AGAIN';U.secondary.hidden=false;U.secondary.textContent='MENU / LEVELS';U.hint.textContent=success?'The next route is unlocked in Menu / Levels.':'You get about 2.5 seconds to see the hit before this result card appears.';U.modal.classList.add('show');this.updateHud()};
 })();
