@@ -31,17 +31,17 @@ The palette below was sampled approximately from the supplied reference screensh
 | Water blue | `#72D8FF` | Main canal surface |
 | Water highlight | `#57BFFD` | Ripples / brighter water variation |
 | Deep water | `#4886C1` | Water edge / depth |
-| Bright grass | `#A6D85E` | Main safe terrain |
-| Mid grass | `#89BA4B` | Alternating ground tiles / vegetation |
-| Grass shadow | `#596A1A` | Extruded grass/tree sides |
+| Bright grass | `#A7D861` | Main safe terrain |
+| Mid grass | `#94BD50` | Alternating ground tiles / vegetation |
+| Grass shadow | `#566A29` | Extruded grass/tree sides |
 | Log brown | `#8B443B` | Floating log top face |
 | Log dark | `#6A3939` | Log side face |
-| Vehicle orange | `#F26434` | High-energy car / truck accent |
-| Vehicle red-orange | `#EA4225` | Secondary warm vehicle accent |
-| Lime vehicle | `#A4D55C` | Crossy-style bright green vehicles |
-| Cabin white | `#F8FFF6` | Car roofs and chef whites |
-| Collectible yellow | `#FDF95E` | Pickup / UI highlight |
-| Cool mint accent | `#81D5C1` | Supporting cool accent |
+| Vehicle orange | `#F06030` | High-energy car / truck accent |
+| Vehicle red-orange | `#E84028` | Secondary warm vehicle accent |
+| Lime vehicle | `#A1D15A` | Bright green vehicles |
+| Cabin white | `#EFFAE8` | Car roofs and chef whites |
+| Collectible yellow | `#F8F858` | Pickup / UI highlight |
+| Cool mint accent | `#81D4C1` | Supporting cool accent |
 
 ### Shading rule
 
@@ -53,13 +53,13 @@ The game uses one consistent fake-light model instead of true 3D lighting:
 4. Right-side faces are roughly 25–30% darker.
 5. A dark, offset silhouette is placed **down and to the right** as the cast shadow.
 
-This same rule is used on the sushi chef, vehicles, logs, trees, pickups, and restaurant. The chef therefore has a visible ground shadow plus shaded block faces instead of reading as a flat icon.
+This same rule is used on the sushi chef, vehicles, logs, pickups, and restaurant. The chef therefore has a visible ground shadow plus shaded block faces instead of reading as a flat icon.
 
 ## Voxel / block philosophy
 
 Crossy Road's developers have described its art as voxel-based, and interviews about the game's creation note that the angled presentation made the voxel world substantially more appealing while still preserving sharp, readable hitboxes. Sushi Street uses that principle rather than copying Crossy Road models: objects are reduced to simple boxy silhouettes, edges stay crisp, and depth comes from a repeatable top/front/right-face lighting system.
 
-Implementation-wise, Sushi Street stays in Phaser 2D. `game.js` draws simple cuboid-like forms with Phaser Graphics rather than requiring a 3D engine. This keeps the game fast, deterministic, and compatible with the existing Phaser lifecycle work.
+Implementation-wise, Sushi Street stays in Phaser 2D. The modular runtime (`sushi-scene.js`, `sushi-visuals.js`, and `sushi-gameplay.js`) draws simple cuboid-like forms with Phaser Graphics rather than requiring a 3D engine. This keeps the game fast, deterministic, and compatible with the existing Phaser lifecycle work.
 
 ## Full-screen layout
 
@@ -104,16 +104,29 @@ See `PHASER_LIFECYCLE.md` for details.
 
 - `index.html` — full-screen shell, HUD, loader, result/menu modal.
 - `style.css` — sampled palette, loader, HUD, modal styling.
-- `game.js` — Phaser scene, voxel-style shape drawing, lanes, traffic, water, chef, scoring and progression.
+- `sushi-config.js` — viewport sizing, palette, themes, item catalog, and constants.
+- `sushi-scene.js` — direct-start scene, input, level setup, and menu flow.
+- `sushi-visuals.js` — voxel-style roads, cars, chef, water, logs, lily pads, shops, and shadows.
+- `sushi-gameplay.js` — movement, camera pressure, pickups, MISSED feedback, scoring, hazards, and progression.
+- `sushi-boot.js` — full-screen Phaser boot.
 - `lifecycle.js` — pause / resume / cleanup behavior.
 - `GAME_DESIGN.md` — game rules and visual design notes.
 - `PHASER_LIFECYCLE.md` — lifecycle practices adapted from Slip and Jump.
+
+## Camera pressure and ingredient feedback
+
+The camera is intentionally **not** a passive follow camera. After the first hop, it keeps creeping forward even while the chef waits. Forward progress pulls the chef back toward a lower-middle screen anchor and exposes more upcoming lanes at the top. If the chef falls to roughly the bottom 9% of the viewport, the giant sushi fish ends the run. This matches the pressure principle described in Crossy Road coverage: the bottom screen edge keeps advancing and waiting too long eventually becomes fatal.
+
+The top HUD includes a **Minimum Ingredients** bar. The minimum is the smallest whole-number count greater than 50% of the menu (`floor(total × 0.5) + 1`). When the bar fills, the route is eligible to open the restaurant at the finish.
+
+Ingredient shops use a wider rectangular pickup zone rather than requiring the chef to land on one exact grid column. Entering any part of that marked zone on the correct shop row collects the ingredient and triggers a pickup burst. If the chef advances past an uncollected ingredient row, that shop turns red and shows **MISSED**. Backtracking to the ingredient row or earlier removes the missed warning, so recovery is still possible.
 
 ## Research references
 
 - Crossy Road official site: https://www.crossyroad.com/
 - Crossy Road App Store listing: https://apps.apple.com/us/app/crossy-road/id924373886
 - PocketGamer.biz, *Why did the chicken... the making of Crossy Road*: https://www.pocketgamer.biz/making-of-crossy-road/
+- Apple Games We Love: https://apps.apple.com/us/story/id1392574563
 - Phaser Scale Manager: https://docs.phaser.io/phaser/concepts/scale-manager
 - Phaser Graphics: https://docs.phaser.io/phaser/concepts/gameobjects/graphics
 
