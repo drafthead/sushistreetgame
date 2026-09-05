@@ -4,16 +4,26 @@
   const save=x=>{try{localStorage.setItem(S.SAVE_KEY,JSON.stringify(x))}catch(_){}};
 
   class SushiScene extends Phaser.Scene {
-    constructor(){super('SushiStreet');this.save=loadSave();this.selectedLevel=1;this.runActive=false;this.runEnded=true;this.runStarted=false;this.inputLocked=true;this.isMoving=false;this.levelObjects=[];this.skyObjects=[];this.rows=[];this.vehicles=[];this.floaters=[];this.pickups=[];this.gesture={id:null,x:0,y:0};}
+    constructor(){super('SushiStreet');this.save=loadSave();this.selectedLevel=1;this.runActive=false;this.runEnded=true;this.runStarted=false;this.inputLocked=true;this.isMoving=false;this.levelObjects=[];this.skyObjects=[];this.rows=[];this.vehicles=[];this.floaters=[];this.pickups=[];this.gesture={id:null,x:0,y:0};this._resizeTimer=0;}
 
     create(){
-      window.__SUSHI_SCENE=this;
-      window.SUSHI_RUNTIME_LIFECYCLE.bind(()=>window.__SUSHI_SCENE);
+      window.__SUSHI_SCENE=this;window.SUSHI_RUNTIME_LIFECYCLE.bind(()=>window.__SUSHI_SCENE);
       this.keys=this.input.keyboard.addKeys('UP,DOWN,LEFT,RIGHT,W,A,S,D,SPACE');
       this.installInput();this.installUi();
+      this.scale.on('resize', size=>this.handleViewportResize(size));
       const l=S.clamp(Math.min(this.save.lastLevel||1,this.save.unlockedLevel||1),1,S.MAX_LEVEL);
-      this.startLevel(l,{boot:true});
-      requestAnimationFrame(()=>requestAnimationFrame(()=>document.body.classList.add('loaded')));
+      this.startLevel(l,{boot:true});requestAnimationFrame(()=>requestAnimationFrame(()=>document.body.classList.add('loaded')));
+    }
+
+    handleViewportResize(size){
+      const w=Math.round(size?.width||window.innerWidth||S.W),h=Math.round(size?.height||window.innerHeight||S.H);
+      const oldW=S.W,oldH=S.H;
+      if(Math.abs(w-oldW)<2&&Math.abs(h-oldH)<2)return;
+      S.setViewport(w,h);
+      clearTimeout(this._resizeTimer);
+      const material=Math.abs(w-oldW)>24||Math.abs((w/h)-(oldW/oldH))>.08;
+      if(!material)return;
+      this._resizeTimer=setTimeout(()=>{if(this.scene?.isActive?.())this.startLevel(this.selectedLevel,{resize:true})},120);
     }
 
     installInput(){
@@ -47,39 +57,50 @@
     levelLength(l){return 30+(l-1)*2}
     buildMenu(l){const r=S.rngFor(l*97+11),a=S.ITEMS.slice(0,S.clamp(4+Math.floor(l/3),4,S.ITEMS.length)),n=S.clamp(4+Math.floor(l/2),4,9),k=S.clamp(3+Math.floor(l/4),3,Math.min(6,a.length)),chosen=[];while(chosen.length<k){const i=a[Math.floor(r()*a.length)];if(!chosen.includes(i))chosen.push(i)}const list=[];for(let i=0;i<n;i++)list.push(chosen[i%chosen.length]);return list}
 
+    planIngredientRows(){
+      const count=this.menuList.length, gap=S.PICKUP_ROW_GAP, start=4, end=Math.max(start,this.goalRow-3), rng=S.rngFor(this.selectedLevel*313+29), rows=[];
+      if(!count)return rows;
+      let previous=start-gap;
+      for(let i=0;i<count;i++){
+        const remaining=count-i-1;
+        const minRow=Math.max(start,previous+gap);
+        const maxRow=Math.max(minRow,end-remaining*gap);
+        const ideal=count===1?Math.round((start+end)/2):Math.round(start+(end-start)*(i/(count-1)));
+        const jitter=Math.floor(rng()*3)-1;
+        const row=S.clamp(ideal+jitter,minRow,maxRow);
+        rows.push(row);previous=row;
+      }
+      this.ingredientRowPlan=new Map(rows.map((row,i)=>[row,{item:this.menuList[i],index:i}]));
+      return rows;
+    }
+
     startLevel(l,opt={}){
-      this.save=loadSave();l=S.clamp(Number(l)||1,1,this.save.unlockedLevel||1);
-      try{if(this.scene.isPaused())this.scene.resume()}catch(_){}
-      window.SUSHI_RUNTIME_LIFECYCLE.beforeLevelBuild(this);
-      this.selectedLevel=l;this.save.lastLevel=l;save(this.save);
-      this.runActive=true;this.runEnded=false;this.runStarted=false;this.inputLocked=true;this.isMoving=false;
-      this.activeMs=0;this.idleMs=0;this.score=0;this.totalHops=0;this.maxRow=0;this.goalRow=this.levelLength(l);
-      this.theme=this.themeForLevel(l);this.rng=S.rngFor(l);this.menuList=this.buildMenu(l);this.menuRequired={};this.menuCollected={};
-      this.menuList.forEach(i=>this.menuRequired[i.key]=(this.menuRequired[i.key]||0)+1);Object.keys(this.menuRequired).forEach(k=>this.menuCollected[k]=0);
+      this.save=loadSave();l=S.clamp(Number(l)||1,1,this.save.unlockedLevel||1);try{if(this.scene.isPaused())this.scene.resume()}catch(_){}window.SUSHI_RUNTIME_LIFECYCLE.beforeLevelBuild(this);
+      this.selectedLevel=l;this.save.lastLevel=l;save(this.save);this.runActive=true;this.runEnded=false;this.runStarted=false;this.inputLocked=true;this.isMoving=false;this.activeMs=0;this.idleMs=0;this.score=0;this.totalHops=0;this.maxRow=0;this.goalRow=this.levelLength(l);this.theme=this.themeForLevel(l);this.rng=S.rngFor(l);this.menuList=this.buildMenu(l);this.menuRequired={};this.menuCollected={};this.menuList.forEach(i=>this.menuRequired[i.key]=(this.menuRequired[i.key]||0)+1);Object.keys(this.menuRequired).forEach(k=>this.menuCollected[k]=0);this.planIngredientRows();
 
-      this.worldH=S.OVERSCAN_Y*2+S.SAFE_BOTTOM+(this.goalRow+6)*S.ROW_H;
-      this.cameras.main.setBounds(0,0,S.WORLD_W,this.worldH);
-      this.cameras.main.setRotation(S.CAMERA_ROTATION);
-      this.cameras.main.setZoom(1);
-      const initialY=S.clamp(this.rowY(0)-S.H*.74,0,Math.max(0,this.worldH-S.H));
-      this.cameras.main.setScroll(S.OVERSCAN_X,initialY);
-      this.cameraTargetY=initialY;
-
-      this.buildSky();this.buildRows();this.spawnPlayer();this.updateHud(true);
-      U.hud.style.opacity='1';U.modal.classList.remove('show');this.inputLocked=false;
-      if(!opt.boot)document.body.classList.add('loaded');
+      this.worldH=S.OVERSCAN_Y*2+S.SAFE_BOTTOM+(this.goalRow+5)*S.ROW_H;
+      this.cameras.main.setBounds(0,0,S.WORLD_W,this.worldH);this.cameras.main.setRotation(S.CAMERA_ROTATION);this.cameras.main.scrollX=S.OVERSCAN_X;
+      this.cameras.main.setScroll(S.OVERSCAN_X,S.clamp(this.rowY(0)-S.H*S.CAMERA_FOLLOW_Y,0,Math.max(0,this.worldH-S.H)));
+      this.cameraTargetY=this.cameras.main.scrollY;
+      this.buildSky();this.buildRows();this.spawnPlayer();this.updateHud(true);U.hud.style.opacity='1';U.modal.classList.remove('show');this.inputLocked=false;if(!opt.boot)document.body.classList.add('loaded');
     }
 
     rowY(r){return this.worldH-S.OVERSCAN_Y-S.SAFE_BOTTOM-r*S.ROW_H}
     colX(c){return S.PLAY_X+S.SIDE_MARGIN+S.CELL_W*.5+c*S.CELL_W}
-    describeRow(i){if(i===0)return{index:i,type:'start'};if(i>=this.goalRow)return{index:i,type:'goal'};const c=i%8;if(c===1||c===2||c===7)return{index:i,type:'road'};if(c===3)return{index:i,type:'safe'};if(c===4||c===5)return{index:i,type:'water'};return{index:i,type:'shop'}}
+
+    describeRow(i){
+      if(i===0)return{index:i,type:'start'};
+      if(i>=this.goalRow)return{index:i,type:'goal'};
+      if(this.ingredientRowPlan?.has(i))return{index:i,type:'shop',ingredient:this.ingredientRowPlan.get(i)};
+      const c=i%8;
+      if(c===1||c===2||c===7)return{index:i,type:'road'};
+      if(c===4||c===5)return{index:i,type:'water'};
+      return{index:i,type:'safe'};
+    }
+
     buildRows(){const shops=[];for(let i=0;i<=this.goalRow;i++){const r=this.describeRow(i);r.y=this.rowY(i);r.objects=[];r.vehicles=[];r.floaters=[];r.pickups=[];this.rows[i]=r;if(r.type==='shop')shops.push(r)}this.rows.forEach(r=>this.renderRow(r));this.placePickups(shops)}
 
-    openLevelSelect(f=this.selectedLevel){
-      window.SUSHI_RUNTIME_LIFECYCLE.hideWarmup();try{if(this.scene.isPaused())this.scene.resume()}catch(_){}window.SUSHI_RUNTIME_LIFECYCLE.beforeLevelBuild(this);
-      this.runActive=false;this.runEnded=true;this.runStarted=false;this.inputLocked=true;this.save=loadSave();this.selectedLevel=S.clamp(Math.min(f,this.save.unlockedLevel),1,S.MAX_LEVEL);
-      U.hud.style.opacity='0';U.title.textContent='DELIVERY MENU';U.body.textContent='Choose an unlocked route. Play drops you directly onto the moving street.';U.stats.hidden=true;U.levelGrid.hidden=false;U.secondary.hidden=true;U.primary.dataset.action='start';U.primary.textContent=`PLAY LEVEL ${this.selectedLevel}`;U.hint.textContent='Level 3 is the first night route. Traffic is already moving before your first hop.';this.renderLevelGrid();U.modal.classList.add('show');
-    }
+    openLevelSelect(f=this.selectedLevel){window.SUSHI_RUNTIME_LIFECYCLE.hideWarmup();try{if(this.scene.isPaused())this.scene.resume()}catch(_){}window.SUSHI_RUNTIME_LIFECYCLE.beforeLevelBuild(this);this.runActive=false;this.runEnded=true;this.runStarted=false;this.inputLocked=true;this.save=loadSave();this.selectedLevel=S.clamp(Math.min(f,this.save.unlockedLevel),1,S.MAX_LEVEL);U.hud.style.opacity='0';U.title.textContent='DELIVERY MENU';U.body.textContent='Choose an unlocked route. Play drops you directly onto the moving street.';U.stats.hidden=true;U.levelGrid.hidden=false;U.secondary.hidden=true;U.primary.dataset.action='start';U.primary.textContent=`PLAY LEVEL ${this.selectedLevel}`;U.hint.textContent='Traffic is already moving before your first hop.';this.renderLevelGrid();U.modal.classList.add('show')}
     renderLevelGrid(){U.levelGrid.innerHTML='';for(let l=1;l<=S.MAX_LEVEL;l++){const b=document.createElement('button');b.type='button';b.className=`level-btn${l>this.save.unlockedLevel?' locked':''}${l===this.selectedLevel?' selected':''}`;b.dataset.level=l;b.textContent=l;b.disabled=l>this.save.unlockedLevel;U.levelGrid.appendChild(b)}}
   }
 
