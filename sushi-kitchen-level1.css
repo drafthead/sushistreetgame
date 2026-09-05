@@ -3,6 +3,8 @@
   /* Bring another 80 px of each side illustration inward from the previous
      92–112 px rail while keeping the outside edge pinned to the viewport. */
   --kitchen-side-visible:clamp(172px,13vw,192px);
+  --kitchen-parallax-left:0px;
+  --kitchen-parallax-right:0px;
   position:fixed;
   inset:0;
   z-index:260;
@@ -19,27 +21,32 @@ body.kitchen-level-one #kitchen-side-frame,
   opacity:1!important;
 }
 
-/* Use the real side PNGs. The elements remain pinned to the physical screen
-   edges, but extend substantially farther toward the center of the game. */
+/* Use the real side PNGs. Give each image extra vertical bleed so it can move
+   downward as the player advances without exposing a gap at the top. This
+   turns the formerly static rails into a simple world-progress parallax layer. */
 #kitchen-side-frame .kitchen-side{
   display:block!important;
   position:absolute;
-  top:auto;
-  bottom:0;
+  top:-220px;
+  bottom:auto;
   width:var(--kitchen-side-visible);
-  height:100dvh;
+  height:calc(100dvh + 440px);
   max-width:none;
   max-height:none;
   object-fit:cover;
   filter:saturate(1.04) contrast(1.03);
+  will-change:transform;
+  backface-visibility:hidden;
 }
 #kitchen-side-frame .kitchen-side-left{
   left:0;
   object-position:82% 100%;
+  transform:translate3d(0,var(--kitchen-parallax-left),0);
 }
 #kitchen-side-frame .kitchen-side-right{
   right:0;
   object-position:18% 100%;
+  transform:translate3d(0,var(--kitchen-parallax-right),0);
 }
 
 /* Keep controls above the decorative rails; rails stay well above the Phaser
@@ -55,4 +62,7 @@ body.kitchen-level-one .minimum-track{margin-top:7px}
   #kitchen-side-frame{--kitchen-side-visible:172px}
   body.kitchen-level-one .minimum-copy{gap:5px}
   body.kitchen-level-one #minimum-text{font-size:10px}
+}
+@media(prefers-reduced-motion:reduce){
+  #kitchen-side-frame .kitchen-side{transform:none!important}
 }
