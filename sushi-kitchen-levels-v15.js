@@ -1,7 +1,7 @@
 (() => {
   const S=window.SS, proto=window.SushiScene.prototype;
   const WOOD_KEY='kitchen-flying-wood';
-  const WOOD_PATH='images/sushimasters/3/wood/1.png';
+  const WOOD_PATH='images/wood/1.png';
   const depth=(scene,y,o=0)=>scene.depthForY
     ? scene.depthForY(y,o)
     : 10000+Math.round((Number(y)||0)*10)+o;
