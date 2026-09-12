@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="theme-color" content="#030305" />
+  <meta name="color-scheme" content="dark" />
+  <title>Particles — Feel Prototype</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main id="app" aria-label="Particles prototype">
+    <canvas id="field" aria-label="Interactive particle field"></canvas>
+
+    <div id="score-wrap" class="hud-card" aria-live="polite">
+      <span id="score-label">SCORE</span>
+      <span id="score">0</span>
+    </div>
+
+    <div id="signal" aria-hidden="true"></div>
+
+    <nav id="dock" aria-label="Game menu">
+      <button id="sessions-button" type="button">Sessions</button>
+      <button id="settings-button" type="button">Settings</button>
+    </nav>
+
+    <section id="sessions-panel" class="panel" hidden aria-modal="true" role="dialog" aria-labelledby="sessions-title">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">HISTORY</p>
+          <h2 id="sessions-title">Sessions</h2>
+        </div>
+        <button class="close-panel" data-close="sessions-panel" aria-label="Close sessions">×</button>
+      </div>
+      <div id="session-current" class="current-session"></div>
+      <div id="sessions-list" class="sessions-list"></div>
+      <button id="new-session-button" class="primary-action" type="button">New session</button>
+    </section>
+
+    <section id="settings-panel" class="panel" hidden aria-modal="true" role="dialog" aria-labelledby="settings-title">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">PREFERENCES</p>
+          <h2 id="settings-title">Settings</h2>
+        </div>
+        <button class="close-panel" data-close="settings-panel" aria-label="Close settings">×</button>
+      </div>
+
+      <label class="setting-row" for="session-timeout">
+        <span>
+          <strong>Resume window</strong>
+          <small>Return within this time to keep the same session.</small>
+        </span>
+        <output id="session-timeout-value">5 min</output>
+      </label>
+      <input id="session-timeout" type="range" min="1" max="15" step="1" value="5" />
+
+      <label class="toggle-row">
+        <span>
+          <strong>Gentle trails</strong>
+          <small>Leave a little more light behind motion.</small>
+        </span>
+        <input id="trails-toggle" type="checkbox" checked />
+      </label>
+
+      <label class="toggle-row">
+        <span>
+          <strong>Discovery assist</strong>
+          <small>After a quiet scoring stretch, the field gives a subtle five-second clue.</small>
+        </span>
+        <input id="assist-toggle" type="checkbox" checked />
+      </label>
+
+      <button id="tutorial-button" class="secondary-action" type="button">How to play</button>
+      <p class="prototype-note">Prototype: hidden rules are intentionally not named during play.</p>
+    </section>
+
+    <div id="backdrop" hidden></div>
+
+    <div id="tutorial" hidden>
+      <div id="tutorial-spotlight"></div>
+      <svg id="tutorial-arrow" aria-hidden="true">
+        <defs>
+          <marker id="tutorial-arrow-head" markerWidth="2.5" markerHeight="2.5" refX="2.25" refY="1.25" orient="auto">
+            <path d="M0,0 L2.5,1.25 L0,2.5 z"></path>
+          </marker>
+        </defs>
+        <path id="tutorial-arrow-path" marker-end="url(#tutorial-arrow-head)"></path>
+      </svg>
+      <div id="tutorial-tag"></div>
+      <div id="tutorial-card">
+        <button id="tutorial-close" type="button" aria-label="Skip tutorial">×</button>
+        <p id="tutorial-kicker">HOW TO PLAY</p>
+        <h2 id="tutorial-title"></h2>
+        <p id="tutorial-body"></p>
+        <div id="tutorial-progress"></div>
+        <div class="tutorial-actions">
+          <button id="tutorial-skip" type="button">Skip</button>
+          <button id="tutorial-next" type="button">Next</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
