@@ -1,5 +1,12 @@
 # Sushi Street
 
+This repository now contains two game projects being developed side by side.
+
+## Projects in this repository
+
+- **Sushi Street** — the existing Phaser road/river delivery game. Its application files remain at the repository root.
+- **Particles** — a new calm, touch-first particle discovery game with hidden scoring rules, multi-touch interaction, sessions, and a native-first production architecture. The working project lives in [`/Particles`](./Particles/) and is being developed on `dev` for now.
+
 Sushi Street is a Phaser web game built around one-hop-per-lane movement, moving traffic, river crossings, ingredient delivery, and a camera that keeps pushing the route forward. It uses lightweight 2D Phaser shapes to create a voxel / block-like look suitable for the web now and a future iPhone / Android wrapper later.
 
 ## Start flow
